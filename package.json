@@ -5,14 +5,15 @@
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
+    "ensure-electron": "node -e \"require('electron')\"",
     "prepare-assets": "node scripts/copy-pdfjs-assets.mjs",
-    "dev": "npm run prepare-assets && electron-vite dev",
+    "dev": "npm run ensure-electron && npm run prepare-assets && electron-vite dev",
     "build": "npm run prepare-assets && electron-vite build",
-    "preview": "electron-vite preview",
+    "preview": "npm run ensure-electron && electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "dist": "npm run build && electron-builder",
-    "test:e2e": "node tests/e2e/smoke.cjs"
+    "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs",
+    "dist": "npm run build && electron-builder"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
