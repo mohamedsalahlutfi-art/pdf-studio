@@ -5,7 +5,7 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { assetFromCanvas, assetFromDataUrl, assetFromFile, type Asset } from '../lib/assets'
 import * as platform from '../lib/platform'
-import { drawStamp, RASTER_SCALE, removeWhiteBackground, STAMPS, type StampDefinition } from '../lib/render'
+import { drawStamp, RASTER_SCALE, removeWhiteBackground, STAMPS, trimCanvas, type StampDefinition } from '../lib/render'
 import { useApp, type Placement, type Tool } from '../store/useApp'
 
 const COLORS = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#212121']
@@ -82,7 +82,7 @@ function StampMenu({ onClose }: { onClose: () => void }) {
   const upload = async (): Promise<void> => {
     const [file] = (await platform.openDialog()).filter((f) => platform.isImageName(f.name))
     if (!file) return
-    const canvas = await removeWhiteBackground(new Blob([file.data as BlobPart]))
+    const canvas = trimCanvas(await removeWhiteBackground(new Blob([file.data as BlobPart])), 4)
     const dataUrl = dataUrlOf(canvas)
     s.addToLibrary('stamps', dataUrl)
     await placeCustom(dataUrl)

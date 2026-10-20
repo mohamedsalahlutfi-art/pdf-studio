@@ -134,7 +134,26 @@ export function drawTypedSignature(name: string, color: string): HTMLCanvasEleme
 }
 
 /** Makes near-white pixels transparent, for scanned signatures and logos. */
-export async function removeWhiteBackground(file: Blob): Promise<HTMLCanvasElement> {
+export interface WhiteRemovalOptions {
+  /** Pixels brighter than this (0–255) and near-grey become fully transparent. */
+  threshold?: number
+  /** Width of the fade band below the threshold; wider = softer edges. */
+  softness?: number
+  /** How strongly to strip the white fringe left on anti-aliased ink edges (0–1). */
+  decontaminate?: number
+}
+
+/**
+ * Removes the paper behind a stamp or signature while keeping the coloured ink
+ * crisp. Whiteness is judged from the brightest channel and the lack of colour,
+ * so a saturated red or blue seal survives even where it is light, while grey
+ * paper and scanner noise go fully transparent. Semi-white edge pixels fade out
+ * and have their leftover white tint removed, so the ink keeps a clean outline.
+ */
+export async function removeWhiteBackground(file: Blob, options: WhiteRemovalOptions = {}): Promise<HTMLCanvasElement> {
+  const threshold = options.threshold ?? 232
+  const softness = options.softness ?? 46
+  const decontaminate = options.decontaminate ?? 0.85
   const bitmap = await createImageBitmap(file)
   const canvas = document.createElement('canvas')
   canvas.width = bitmap.width
@@ -142,15 +161,51 @@ export async function removeWhiteBackground(file: Blob): Promise<HTMLCanvasEleme
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(bitmap, 0, 0)
   bitmap.close()
+
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const d = image.data
-  for (let i = 0; i < d.length; i += 4) {
-    const lightness = Math.min(d[i], d[i + 1], d[i + 2])
-    if (lightness > 235) d[i + 3] = 0
-    else if (lightness > 200) d[i + 3] = Math.min(d[i + 3], Math.round(((235 - lightness) / 35) * 255))
-  }
+  stripWhitePixels(image.data, { threshold, softness, decontaminate })
   ctx.putImageData(image, 0, 0)
   return canvas
+}
+
+/**
+ * The pixel pass behind `removeWhiteBackground`, split out so it can be tested
+ * without a canvas. Mutates the RGBA buffer in place.
+ */
+export function stripWhitePixels(d: Uint8ClampedArray, options: Required<WhiteRemovalOptions>): void {
+  const { threshold, softness, decontaminate } = options
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue
+    const r = d[i]
+    const g = d[i + 1]
+    const b = d[i + 2]
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const saturation = max - min // 0 = grey/white, high = coloured ink
+
+    // How much the pixel looks like blank paper: bright and close to grey.
+    // A small saturation deadzone keeps scanner noise counting as grey paper.
+    const brightness = (max - (threshold - softness)) / softness // 0 below the band, 1 above the threshold
+    const greyness = 1 - Math.min(1, Math.max(0, saturation - 8) / 52) // coloured pixels are protected
+    const whiteness = Math.max(0, Math.min(1, brightness)) * greyness
+
+    if (whiteness >= 1) {
+      d[i + 3] = 0
+      continue
+    }
+    if (whiteness > 0) {
+      d[i + 3] = Math.round(d[i + 3] * (1 - whiteness))
+      // Un-blend the paper white that was mixed into a semi-transparent edge,
+      // so the recovered ink keeps its true colour instead of a pale glow.
+      if (decontaminate > 0 && saturation > 0) {
+        const k = Math.min(whiteness, 0.85) * decontaminate
+        const denom = 1 - k
+        d[i] = Math.round((r - 255 * k) / denom)
+        d[i + 1] = Math.round((g - 255 * k) / denom)
+        d[i + 2] = Math.round((b - 255 * k) / denom)
+      }
+    }
+  }
 }
 
 /** Trims fully transparent borders, so drawn signatures have a tight box. */
