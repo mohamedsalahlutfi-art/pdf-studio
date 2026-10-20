@@ -1,6 +1,6 @@
 {
   "name": "salah-pdf",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Salah PDF — a professional desktop PDF editor",
   "private": true,
   "main": "out/main/index.js",

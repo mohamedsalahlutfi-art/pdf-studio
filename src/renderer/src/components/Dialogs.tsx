@@ -353,7 +353,7 @@ function AboutDialog() {
   return (
     <Modal title={t('aboutTitle')} onClose={close}>
       <p className="muted">{t('aboutBody')}</p>
-      <p className="muted" dir="ltr">Version 1.0.0</p>
+      <p className="muted" dir="ltr">Version 1.3.0</p>
       <ul className="shortcut-list" dir="ltr">
         <li><kbd>Ctrl+O</kbd> Open</li>
         <li><kbd>Ctrl+S</kbd> Save</li>
