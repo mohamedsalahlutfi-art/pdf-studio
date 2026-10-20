@@ -6,7 +6,7 @@ import { isDirty, useActiveTab, useApp } from './store/useApp'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialogs } from './components/Dialogs'
 import { PasswordDialog, Toasts, Welcome } from './components/Overlays'
-import { Ribbon } from './components/Ribbon'
+import { ToolRail, ToolStrip } from './components/Ribbon'
 import { TabBar } from './components/TabBar'
 import { Thumbnails } from './components/Thumbnails'
 import { Toolbar } from './components/Toolbar'
@@ -158,16 +158,19 @@ export function App(): React.JSX.Element {
     >
       <TabBar />
       <Toolbar />
-      <Ribbon />
       <main className="workspace">
-        {tab ? (
-          <>
-            {sidebarOpen && <Thumbnails key={`thumbs-${tab.id}`} tab={tab} />}
-            <Viewer key={`viewer-${tab.id}`} tab={tab} />
-          </>
-        ) : (
-          <Welcome />
-        )}
+        <ToolRail />
+        {tab && sidebarOpen && <Thumbnails key={`thumbs-${tab.id}`} tab={tab} />}
+        <section className="doc-area">
+          {tab ? (
+            <>
+              <ToolStrip />
+              <Viewer key={`viewer-${tab.id}`} tab={tab} />
+            </>
+          ) : (
+            <Welcome />
+          )}
+        </section>
       </main>
       {dragging && <div className="drop-overlay" />}
       <ContextMenu />

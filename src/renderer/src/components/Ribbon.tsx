@@ -1,7 +1,55 @@
-import { Combine, Copy, FileInput, FileOutput, FilePlus, ListOrdered, RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react'
+import {
+  Combine, Copy, FileDown, FileInput, FileOutput, FilePlus, Files, ListOrdered, MessageSquareText, RotateCcw, RotateCw,
+  Scissors, Trash2
+} from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useActiveTab, useApp } from '../store/useApp'
+import { useActiveTab, useApp, type StringKeyLike } from '../store/useApp'
 import { AnnotateTools } from './AnnotateTools'
+
+/**
+ * Vertical tool rail down the left edge (Acrobat-style "all tools" rail): pick a
+ * tool group, then its tools appear in the contextual strip above the document.
+ */
+export function ToolRail(): React.JSX.Element {
+  const t = useApp((s) => s.t)
+  const ribbon = useApp((s) => s.ribbon)
+  const tab = useActiveTab()
+  const s = useApp.getState()
+  const groups: { id: 'pages' | 'annotate'; label: StringKeyLike; icon: ReactNode }[] = [
+    { id: 'pages', label: 'pages', icon: <Files size={22} /> },
+    { id: 'annotate', label: 'annotate', icon: <MessageSquareText size={22} /> }
+  ]
+  return (
+    <nav className="tool-rail" role="tablist" aria-label={t('tools')}>
+      {groups.map((group) => (
+        <button
+          key={group.id}
+          type="button"
+          role="tab"
+          aria-selected={ribbon === group.id}
+          className="rail-item"
+          disabled={!tab}
+          title={t(group.label)}
+          onClick={() => s.setRibbon(group.id)}
+        >
+          {group.icon}
+          <span>{t(group.label)}</span>
+        </button>
+      ))}
+      <span className="rail-spacer" />
+      <button
+        type="button"
+        className="rail-item"
+        disabled={!tab}
+        title={t('exportAndCompress')}
+        onClick={() => s.openDialog({ kind: 'export' })}
+      >
+        <FileDown size={22} />
+        <span>{t('exportShort')}</span>
+      </button>
+    </nav>
+  )
+}
 
 function Tool(props: { label: string; icon: ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean }) {
   return (
@@ -18,23 +66,16 @@ function Tool(props: { label: string; icon: ReactNode; onClick: () => void; disa
   )
 }
 
-/** Ribbon with two tool sets: page organisation, and comments/stamps/signatures. */
-export function Ribbon(): React.JSX.Element | null {
+/** Contextual tool strip above the document, showing the active group's tools. */
+export function ToolStrip(): React.JSX.Element | null {
   const tab = useActiveTab()
-  const t = useApp((s) => s.t)
   const ribbon = useApp((s) => s.ribbon)
+  const t = useApp((s) => s.t)
   if (!tab) return null
-  const { setRibbon } = useApp.getState()
   return (
-    <div className="ribbon" role="toolbar">
-      <div className="ribbon-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={ribbon === 'pages'} onClick={() => setRibbon('pages')}>
-          {t('pages')}
-        </button>
-        <button type="button" role="tab" aria-selected={ribbon === 'annotate'} onClick={() => setRibbon('annotate')}>
-          {t('annotate')}
-        </button>
-      </div>
+    <div className="ribbon" role="toolbar" aria-label={t(ribbon === 'pages' ? 'pages' : 'annotate')}>
+      <span className="ribbon-group-name">{t(ribbon === 'pages' ? 'pages' : 'annotate')}</span>
+      <span className="divider" />
       {ribbon === 'pages' ? <PageTools /> : <AnnotateTools />}
     </div>
   )

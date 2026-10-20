@@ -52,7 +52,7 @@ const step = (name) => console.log(`  ✓ ${name}`)
 
     await win.waitForSelector('.page[data-page="1"] canvas', { timeout: 20000 })
     await win.waitForSelector('.page[data-page="1"] .textLayer span')
-    await win.locator('.ribbon-tabs button').nth(1).click()
+    await win.locator('.tool-rail .rail-item').nth(1).click()
     // Show the whole first page so every point we click is on screen.
     await win.evaluate(() => window.__salahStore.getState().setZoom(0.75))
     await win.waitForTimeout(500)
@@ -85,14 +85,14 @@ const step = (name) => console.log(`  ✓ ${name}`)
     await tool('نص')
     await page.click({ position: { x: box.width * 0.1, y: box.height * 0.65 } })
     await win.keyboard.type('مرحبا بالعالم — Hello world')
-    await win.locator('.ribbon-tabs button').nth(1).click()
+    await win.locator('.tool-rail .rail-item').nth(1).click()
     await waitFor((a) => a.includes('image:text'), 'text box')
     step('Arabic + English text box')
 
     await tool('ملاحظة')
     await page.click({ position: { x: box.width * 0.9, y: box.height * 0.1 } })
     await win.locator('.note-editor textarea').fill('راجع هذا الرقم')
-    await win.locator('.ribbon-tabs button').nth(1).click()
+    await win.locator('.tool-rail .rail-item').nth(1).click()
     await waitFor((a) => a.includes('note'), 'note')
     step('sticky note')
 
@@ -146,7 +146,7 @@ const step = (name) => console.log(`  ✓ ${name}`)
     }
 
     // Rotate the page: annotations stay attached to the content.
-    await win.locator('.ribbon-tabs button').nth(0).click()
+    await win.locator('.tool-rail .rail-item').nth(0).click()
     await win.locator('.thumb').first().click()
     await command('rotate-cw')
     await win.waitForTimeout(800)

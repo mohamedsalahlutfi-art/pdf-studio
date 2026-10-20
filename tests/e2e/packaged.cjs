@@ -34,7 +34,7 @@ const step=(n)=>console.log('  ✓ '+n)
     step('packaged app opened image+text PDF (path with spaces)')
 
     // Annotation: a highlight by selecting text.
-    await win.locator('.ribbon-tabs button').nth(1).click()
+    await win.locator('.tool-rail .rail-item').nth(1).click()
     await win.evaluate(()=>window.__salahStore.getState().setZoom(0.9))
     await win.waitForTimeout(300)
     await win.locator('.ribbon-tool',{hasText:'تظليل'}).click()
