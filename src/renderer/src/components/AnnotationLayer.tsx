@@ -397,11 +397,17 @@ export function AnnotationLayer({ page, frame, scale }: Props): React.JSX.Elemen
                 e.preventDefault()
                 e.stopPropagation()
                 const s = useApp.getState()
-                s.selectAnnotation({ pageId: page.id, id: a.id })
+                const ref = { pageId: page.id, id: a.id }
+                s.selectAnnotation(ref)
+                const editable = a.type === 'note' || (a.type === 'image' && a.kind === 'text')
+                const isImage = a.type === 'image'
+                const multiPage = (s.tabs.find((t) => t.id === s.activeId)?.history.present.pages.length ?? 0) > 1
                 s.openContextMenu(e.clientX, e.clientY, [
-                  ...(a.type === 'note' || (a.type === 'image' && a.kind === 'text')
-                    ? [{ label: s.t('editText'), onClick: () => s.setEditing({ pageId: page.id, id: a.id }) }]
-                    : []),
+                  ...(editable ? [{ label: s.t('editText'), onClick: () => s.setEditing(ref) }] : []),
+                  ...(isImage && a.kind !== 'text' ? [{ label: s.t('cropImage'), onClick: () => s.openDialog({ kind: 'crop', ref }) }] : []),
+                  { label: s.t('duplicateAnnotation'), shortcut: 'Ctrl+D', onClick: () => s.duplicateAnnotation(page.id, a.id) },
+                  ...(multiPage ? [{ label: s.t('applyToPages'), onClick: () => s.openDialog({ kind: 'applyPages', ref }) }] : []),
+                  { divider: true },
                   { label: s.t('deleteAnnotation'), danger: true, shortcut: 'Del', onClick: () => s.removeAnnotation(page.id, a.id) }
                 ])
               }}

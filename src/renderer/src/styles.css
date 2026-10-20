@@ -1390,3 +1390,64 @@ body {
 .small {
   font-size: 12px;
 }
+
+/* Apply-to-pages dialog */
+.apply-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.apply-grid button {
+  padding: 10px;
+}
+
+.range-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.range-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Crop dialog */
+.crop-area {
+  position: relative;
+  margin: 10px 0;
+  border-radius: 8px;
+  background:
+    repeating-conic-gradient(#e8e8e8 0% 25%, #f8f8f8 0% 50%) 50% / 20px 20px;
+  overflow: hidden;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.crop-area img {
+  display: block;
+  width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.crop-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.crop-rect {
+  position: absolute;
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}

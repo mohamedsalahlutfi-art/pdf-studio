@@ -10,6 +10,7 @@ import { translate, type StringKey } from '../lib/i18n'
 
 export type StringKeyLike = StringKey
 import { displaySize } from '../lib/layout'
+import { translateAnnotation } from '../lib/geometry'
 import { loadLibrary, saveLibrary, type Library } from '../lib/library'
 import { newId, type Annotation, type DocState, type ImageAnnotation, type LabelRange, type PageRef } from '../lib/model'
 import * as ops from '../lib/pageOps'
@@ -74,6 +75,8 @@ export type Dialog =
   | { kind: 'labels' }
   | { kind: 'signature' }
   | { kind: 'export' }
+  | { kind: 'applyPages'; ref: AnnotationRef }
+  | { kind: 'crop'; ref: AnnotationRef }
   | null
 
 export type Tool =
@@ -104,6 +107,8 @@ export interface AnnotationRef {
   pageId: string
   id: string
 }
+
+export type PageScope = 'all' | 'even' | 'odd' | { from: number; to: number }
 
 export interface SplitRequest {
   groups: number[][]
@@ -185,6 +190,9 @@ interface AppState extends Preferences {
   removeAnnotation: (pageId: string, id: string) => void
   selectAnnotation: (ref: AnnotationRef | null) => void
   setEditing: (ref: AnnotationRef | null) => void
+  duplicateAnnotation: (pageId: string, id: string) => void
+  /** Copies an annotation (stamp/signature/anything) onto other pages at the same position. */
+  applyAnnotationToPages: (pageId: string, id: string, scope: PageScope) => void
   addToLibrary: (kind: keyof Library, dataUrl: string) => void
   removeFromLibrary: (kind: keyof Library, dataUrl: string) => void
 
@@ -700,6 +708,40 @@ export const useApp = create<AppState>((set, get) => {
     selectAnnotation: (ref) => set({ selectedAnnotation: ref }),
     setEditing: (ref) => set({ editing: ref }),
 
+    duplicateAnnotation(pageId, id) {
+      const tab = activeTab()
+      const annotation = tab?.history.present.pages.find((p) => p.id === pageId)?.annotations?.find((a) => a.id === id)
+      if (!annotation) return
+      // Offset the copy slightly so it does not hide the original.
+      const copy = { ...translateAnnotation(annotation, 12, 12), id: newId('ann') }
+      editAnnotations(pageId, (list) => [...list, copy])
+      set({ selectedAnnotation: { pageId, id: copy.id } })
+    },
+
+    applyAnnotationToPages(pageId, id, scope) {
+      const tab = activeTab()
+      if (!tab) return
+      const pages = tab.history.present.pages
+      const sourceIndex = pages.findIndex((p) => p.id === pageId)
+      const annotation = pages[sourceIndex]?.annotations?.find((a) => a.id === id)
+      if (!annotation) return
+      // Which page indices receive a copy (never the source page again).
+      const targets = pages
+        .map((_, i) => i)
+        .filter((i) => i !== sourceIndex)
+        .filter((i) =>
+          scope === 'all' ? true : scope === 'even' ? (i + 1) % 2 === 0 : scope === 'odd' ? (i + 1) % 2 === 1 : i >= scope.from - 1 && i <= scope.to - 1
+        )
+      if (!targets.length) return
+      get().editDoc((state) => ({
+        ...state,
+        pages: state.pages.map((p, i) =>
+          targets.includes(i) ? { ...p, annotations: [...(p.annotations ?? []), { ...annotation, id: newId('ann') }] } : p
+        )
+      }))
+      get().notify('info', `${get().t('stampedOnPages')} ${targets.length}`)
+    },
+
     addToLibrary(kind, dataUrl) {
       const library = { ...get().library, [kind]: [dataUrl, ...get().library[kind].filter((x) => x !== dataUrl)] }
       set({ library })
@@ -716,7 +758,11 @@ export const useApp = create<AppState>((set, get) => {
       const tab = activeTab()
       if (!tab) return null
       const bytes = await exportDocument(tab.history.present)
-      const { report } = await runPdfTaskFull({ type: 'compress', bytes: bytes.slice(), options }, [bytes.buffer as ArrayBuffer])
+      // Transfer a COPY, never the original: exportDocument may return a cached
+      // source's bytes, and transferring that buffer would detach it and break
+      // every later read (render, save, re-estimate).
+      const copy = bytes.slice()
+      const { report } = await runPdfTaskFull({ type: 'compress', bytes: copy, options }, [copy.buffer as ArrayBuffer])
       return report ?? null
     },
 
@@ -727,10 +773,9 @@ export const useApp = create<AppState>((set, get) => {
       await withBusy('compressing', async () => {
         try {
           const source = await exportDocument(state)
-          const { data, report } = await runPdfTaskFull(
-            { type: 'compress', bytes: source.slice(), options },
-            [source.buffer as ArrayBuffer]
-          )
+          // Transfer a copy so a cached source buffer is never detached (see estimateCompression).
+          const copy = source.slice()
+          const { data, report } = await runPdfTaskFull({ type: 'compress', bytes: copy, options }, [copy.buffer as ArrayBuffer])
           let path: string | null
           if (as || (!tab.outputPath && !platform.isDesktop)) path = await platform.saveAs(tab.title, data)
           else if (tab.outputPath) {

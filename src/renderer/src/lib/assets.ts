@@ -52,3 +52,21 @@ export async function assetFromFile(name: string, data: Uint8Array): Promise<Ass
   bitmap.close()
   return assetFromCanvas(canvas)
 }
+
+/**
+ * Produces a new asset cropped to a sub-rectangle of an existing one. The rect
+ * is in 0..1 fractions of the source. Used by the stamp/image crop tool.
+ */
+export async function cropAsset(assetId: string, fraction: { x: number; y: number; w: number; h: number }): Promise<Asset | null> {
+  const source = getAsset(assetId)
+  if (!source) return null
+  const bitmap = await createImageBitmap(new Blob([source.bytes as BlobPart], { type: source.kind === 'png' ? 'image/png' : 'image/jpeg' }))
+  const sx = Math.round(fraction.x * bitmap.width)
+  const sy = Math.round(fraction.y * bitmap.height)
+  const sw = Math.max(1, Math.round(fraction.w * bitmap.width))
+  const sh = Math.max(1, Math.round(fraction.h * bitmap.height))
+  const canvas = new OffscreenCanvas(sw, sh)
+  canvas.getContext('2d')!.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh)
+  bitmap.close()
+  return assetFromCanvas(canvas)
+}
