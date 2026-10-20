@@ -12,7 +12,7 @@
     "preview": "npm run ensure-electron && electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs && node tests/e2e/annotate.cjs && node tests/e2e/export.cjs && node tests/e2e/stamp-multi.cjs && node tests/e2e/estimate-regress.cjs && node tests/e2e/right-panel.cjs && node tests/e2e/security.cjs",
+    "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs && node tests/e2e/annotate.cjs && node tests/e2e/export.cjs && node tests/e2e/stamp-multi.cjs && node tests/e2e/estimate-regress.cjs && node tests/e2e/right-panel.cjs && node tests/e2e/security.cjs && node tests/e2e/batch.cjs",
     "dist": "npm run build && electron-builder",
     "portable": "node scripts/build-portable.mjs",
     "test:portable": "node tests/e2e/packaged.cjs \"dist-portable/stage/Salah PDF 1.0.0/Salah PDF.exe\" && node tests/e2e/portable-data.cjs \"dist-portable/stage/Salah PDF 1.0.0/Salah PDF.exe\""

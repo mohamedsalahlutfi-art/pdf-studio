@@ -6,6 +6,7 @@ import { isDirty, useActiveTab, useApp } from './store/useApp'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialogs } from './components/Dialogs'
 import { PasswordDialog, Toasts, Welcome } from './components/Overlays'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { MenuBar } from './components/MenuBar'
 import { ToolRail, ToolStrip } from './components/Ribbon'
 import { RightPanel } from './components/RightPanel'
@@ -170,10 +171,10 @@ export function App(): React.JSX.Element {
         {tab && sidebarOpen && <Thumbnails key={`thumbs-${tab.id}`} tab={tab} />}
         <section className="doc-area">
           {tab ? (
-            <>
+            <ErrorBoundary message={useApp.getState().t('viewerError')} reloadLabel={useApp.getState().t('reload')}>
               <ToolStrip />
               <Viewer key={`viewer-${tab.id}`} tab={tab} />
-            </>
+            </ErrorBoundary>
           ) : (
             <Welcome />
           )}

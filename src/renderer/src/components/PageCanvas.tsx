@@ -4,6 +4,12 @@ import type { RenderTask } from '../lib/pdfjs'
 import { enqueueRender } from '../lib/renderQueue'
 import { getSource } from '../lib/sources'
 
+// Hard limits on a rendered page canvas. Browsers cap a canvas at ~16384px per
+// side and crash the GPU process well before that on memory, so a big drawing
+// at high zoom is clamped to stay safe. These bound each page bitmap, not zoom.
+const MAX_DIMENSION = 8192
+const MAX_PIXELS = 24_000_000
+
 interface Props {
   page: PageRef
   width: number
@@ -39,16 +45,29 @@ export function PageCanvas({ page, width, height, priority, delay = 0 }: Props):
           if (disposed) return
           const rotation = (pdfPage.rotate + page.rotation) % 360
           const base = pdfPage.getViewport({ scale: 1, rotation })
-          const ratio = Math.min(window.devicePixelRatio || 1, 3)
-          const viewport = pdfPage.getViewport({ scale: (width / base.width) * ratio, rotation })
+          // Cap the canvas so large pages (A0/A1 drawings at high zoom) never
+          // exceed the browser's canvas limits or exhaust GPU memory, which
+          // crashed the renderer to a blank window. Keep within a max dimension
+          // and a max total pixel budget, lowering the pixel ratio as needed.
+          const ratio = Math.min(window.devicePixelRatio || 1, 2)
+          let renderScale = (width / base.width) * ratio
+          const limit = Math.min(
+            MAX_DIMENSION / (base.width * renderScale || 1),
+            MAX_DIMENSION / (base.height * renderScale || 1),
+            Math.sqrt(MAX_PIXELS / Math.max(1, base.width * base.height * renderScale * renderScale))
+          )
+          if (limit < 1) renderScale *= limit
+          const viewport = pdfPage.getViewport({ scale: renderScale, rotation })
           const canvas = document.createElement('canvas')
-          canvas.width = Math.floor(viewport.width)
-          canvas.height = Math.floor(viewport.height)
-          renderTask = pdfPage.render({ canvas, viewport })
+          canvas.width = Math.max(1, Math.floor(viewport.width))
+          canvas.height = Math.max(1, Math.floor(viewport.height))
+          const context = canvas.getContext('2d', { alpha: false })
+          if (!context) throw new Error('2d context unavailable')
+          renderTask = pdfPage.render({ canvas, canvasContext: context, viewport })
           await renderTask.promise
           if (!disposed && holder.current) holder.current.replaceChildren(canvas)
         } catch (error) {
-          if ((error as Error)?.name !== 'RenderingCancelledException') console.error(error)
+          if ((error as Error)?.name !== 'RenderingCancelledException') console.error('page render failed', error)
         }
       })
     }, wait)

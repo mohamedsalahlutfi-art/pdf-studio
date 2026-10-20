@@ -3,7 +3,8 @@ import type { Language, OpenedFile } from '../../../shared/types'
 import type { ImageInput } from '../lib/buildPdf'
 import { compressReport, type CompressReportState } from '../lib/compressState'
 import type { CompressOptions, CompressReport } from '../lib/compress'
-import { encryptBytes, EncryptedExportError, exportDocument, runPdfTask, runPdfTaskFull } from '../lib/exportDocument'
+import { WrongPasswordError } from '../lib/security'
+import { compressBytes, decryptBytes, encryptBytes, EncryptedExportError, exportDocument, inspectSecurity, runPdfTask, runPdfTaskFull } from '../lib/exportDocument'
 import type { EncryptOptions, Permissions } from '../lib/security'
 import { buildTiff, encodeImage, renderPageBitmap, type ImageFormat, type RasterOptions } from '../lib/exportImages'
 import { commit, createHistory, redo, undo, type History } from '../lib/history'
@@ -81,6 +82,7 @@ export type Dialog =
   | { kind: 'crop'; ref: AnnotationRef }
   | { kind: 'about' }
   | { kind: 'protect' }
+  | { kind: 'batch' }
   | null
 
 export type Tool =
@@ -113,6 +115,21 @@ export interface AnnotationRef {
 }
 
 export type PageScope = 'all' | 'even' | 'odd' | { from: number; to: number }
+
+export type BatchOperation = 'compress' | 'protect' | 'unlock'
+
+export interface BatchItem {
+  name: string
+  data: Uint8Array
+  status: 'pending' | 'working' | 'done' | 'skipped' | 'error'
+  message?: string
+  outputPath?: string | null
+}
+
+export interface BatchJob {
+  items: BatchItem[]
+  running: boolean
+}
 
 export interface SplitRequest {
   groups: number[][]
@@ -152,6 +169,8 @@ interface AppState extends Preferences {
   library: Library
   /** Last compression report, shown after a compress-and-save. */
   lastCompression: CompressReportState | null
+  /** Current batch job, or null. */
+  batch: BatchJob | null
 
   t: (key: StringKey) => string
   openFiles: (files: OpenedFile[]) => Promise<void>
@@ -204,6 +223,12 @@ interface AppState extends Preferences {
   openedPermissions: () => Permissions | null
   /** Encrypts the active document with a password + permissions and saves a protected copy. */
   saveProtected: (options: EncryptOptions) => Promise<void>
+  openBatch: () => void
+  addBatchFiles: () => Promise<void>
+  removeBatchItem: (index: number) => void
+  clearBatch: () => void
+  /** Runs an operation over every batch file, writing results to Downloads with a per-file report. */
+  runBatch: (operation: BatchOperation, options: { compress?: CompressOptions; encrypt?: EncryptOptions; password?: string }) => Promise<void>
   /** Copies an annotation (stamp/signature/anything) onto other pages at the same position. */
   applyAnnotationToPages: (pageId: string, id: string, scope: PageScope) => void
   addToLibrary: (kind: keyof Library, dataUrl: string) => void
@@ -437,6 +462,7 @@ export const useApp = create<AppState>((set, get) => {
     editing: null,
     library: loadLibrary(),
     lastCompression: null,
+    batch: null,
 
     t: (key) => translate(get().language, key),
 
@@ -891,6 +917,73 @@ export const useApp = create<AppState>((set, get) => {
           get().notify('error', `${get().t('exportFailed')}: ${message(error)}`)
         }
       })
+    },
+
+    openBatch() {
+      set({ dialog: { kind: 'batch' }, batch: get().batch ?? { items: [], running: false } })
+    },
+
+    async addBatchFiles() {
+      const files = await platform.openDialog()
+      const pdfs = files.filter((f) => platform.isPdfName(f.name))
+      if (!pdfs.length) return
+      const existing = new Set((get().batch?.items ?? []).map((i) => i.name))
+      const added = pdfs
+        .filter((f) => !existing.has(f.name))
+        .map((f): BatchItem => ({ name: f.name, data: f.data, status: 'pending' }))
+      set((st) => ({ batch: { items: [...(st.batch?.items ?? []), ...added], running: false } }))
+    },
+
+    removeBatchItem(index) {
+      set((st) => (st.batch ? { batch: { ...st.batch, items: st.batch.items.filter((_, i) => i !== index) } } : {}))
+    },
+
+    clearBatch() {
+      set({ batch: { items: [], running: false } })
+    },
+
+    async runBatch(operation, options) {
+      const job = get().batch
+      if (!job || job.running || !job.items.length) return
+      const base = (name: string): string => name.replace(/\.[^.\\/]+$/, '')
+      const suffix = operation === 'compress' ? 'compressed' : operation === 'protect' ? 'protected' : 'unlocked'
+      const setItem = (index: number, patch: Partial<BatchItem>): void =>
+        set((st) =>
+          st.batch ? { batch: { ...st.batch, items: st.batch.items.map((it, i) => (i === index ? { ...it, ...patch } : it)) } } : {}
+        )
+
+      set({ batch: { ...job, running: true } })
+      let lastPath: string | null = null
+      for (let i = 0; i < job.items.length; i++) {
+        const item = get().batch!.items[i]
+        if (item.status === 'done') continue
+        setItem(i, { status: 'working', message: undefined })
+        try {
+          let bytes = item.data
+          const info = await inspectSecurity(bytes)
+          if (info.encrypted) {
+            // Unlock first with the batch password (owner-only files accept '').
+            bytes = await decryptBytes(bytes, options.password ?? '')
+          }
+          let out: Uint8Array
+          if (operation === 'compress') out = await compressBytes(bytes, options.compress!)
+          else if (operation === 'protect') out = await encryptBytes(bytes, options.encrypt!)
+          else out = bytes // unlock: the decrypted bytes
+          const path = await platform.saveBytesToDownloads(`${base(item.name)} - ${suffix}.pdf`, out, 'application/pdf')
+          lastPath = path
+          setItem(i, { status: 'done', outputPath: path, message: undefined })
+        } catch (error) {
+          const wrong = error instanceof WrongPasswordError
+          setItem(i, { status: 'error', message: wrong ? get().t('needsPassword') : error instanceof Error ? error.message : String(error) })
+        }
+      }
+      set((st) => (st.batch ? { batch: { ...st.batch, running: false } } : {}))
+      const done = get().batch!.items.filter((it) => it.status === 'done').length
+      get().notify(
+        'info',
+        `${get().t('batchDone')} ${done}/${get().batch!.items.length}`,
+        lastPath ? { label: get().t('showInFolder'), run: () => platform.showInFolder(lastPath!) } : undefined
+      )
     },
 
     async save() {

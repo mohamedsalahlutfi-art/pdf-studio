@@ -65,6 +65,12 @@ export async function encryptBytes(bytes: Uint8Array, options: EncryptOptions): 
   return (await runSecurityTask({ type: 'encrypt', bytes: copy, options }, [copy.buffer as ArrayBuffer])).data
 }
 
+/** Compresses raw PDF bytes (for batch use). */
+export async function compressBytes(bytes: Uint8Array, options: import('./compress').CompressOptions): Promise<Uint8Array> {
+  const copy = bytes.slice()
+  return (await runPdfTaskFull({ type: 'compress', bytes: copy, options }, [copy.buffer as ArrayBuffer])).data
+}
+
 /**
  * Produces the bytes to write for a document. An unmodified document returns
  * its original bytes untouched, which keeps digital signatures and incremental

@@ -31,6 +31,7 @@ export function MenuBar(): React.JSX.Element {
         { label: t('mergeAll'), shortcut: 'Ctrl+M', disabled: s.tabs.length < 2, onClick: s.mergeAll },
         { label: t('split'), disabled: total < 2, onClick: () => s.openDialog({ kind: 'split' }) },
         { label: t('protectMenu'), disabled: !has, onClick: () => s.openDialog({ kind: 'protect' }) },
+        { label: t('batchMenu'), onClick: () => s.openBatch() },
         { divider: true },
         { label: t('closeTab'), shortcut: 'Ctrl+W', disabled: !has, onClick: () => s.activeId && s.closeTab(s.activeId) }
       ]
