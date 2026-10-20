@@ -1,5 +1,5 @@
 import {
-  FolderOpen, Moon, PanelLeft, Redo2, RotateCcw, RotateCw, Save, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
+  FolderOpen, Moon, PanelLeft, Redo2, Save, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
   MoveHorizontal
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -62,7 +62,7 @@ export function Toolbar(): React.JSX.Element {
         <ToolButton label={`${t('open')} (Ctrl+O)`} onClick={() => void s.openFilesFromDialog()}>
           <FolderOpen size={18} />
         </ToolButton>
-        <ToolButton label={`${t('save')} (Ctrl+S)`} onClick={() => void s.save(false)} disabled={!tab || s.busy !== null}>
+        <ToolButton label={`${t('save')} (Ctrl+S)`} onClick={() => void s.save()} disabled={!tab || s.busy !== null}>
           <Save size={18} />
         </ToolButton>
         <span className="divider" />
@@ -94,13 +94,6 @@ export function Toolbar(): React.JSX.Element {
           <span className="page-nav">
             {t('page')} <PageInput current={tab.currentPage} total={pageCount} onGo={s.goToPage} /> {t('of')} {pageCount}
           </span>
-          <span className="divider" />
-          <ToolButton label={t('rotateCcw')} onClick={() => s.rotatePage(-90)}>
-            <RotateCcw size={18} />
-          </ToolButton>
-          <ToolButton label={t('rotateCw')} onClick={() => s.rotatePage(90)}>
-            <RotateCw size={18} />
-          </ToolButton>
         </div>
       )}
 

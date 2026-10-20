@@ -1,7 +1,7 @@
 {
-  "name": "pdf-studio",
+  "name": "salah-pdf",
   "version": "0.1.0",
-  "description": "Fast desktop PDF editor built with Electron",
+  "description": "Salah PDF — fast desktop PDF editor built with Electron",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
@@ -37,8 +37,8 @@
     "zustand": "^5.0.15"
   },
   "build": {
-    "appId": "com.pdfstudio.app",
-    "productName": "PDF Studio",
+    "appId": "com.salahpdf.app",
+    "productName": "Salah PDF",
     "directories": {
       "output": "release"
     },
@@ -68,6 +68,7 @@
         "AppImage"
       ],
       "category": "Office"
-    }
+    },
+    "artifactName": "Salah-PDF-Setup-${version}.${ext}"
   }
 }

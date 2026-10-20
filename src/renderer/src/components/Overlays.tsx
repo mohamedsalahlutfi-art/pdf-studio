@@ -69,7 +69,20 @@ export function Toasts(): React.JSX.Element {
       {busy && <div className="toast info">{t(busy)}</div>}
       {toasts.map((toast) => (
         <div key={toast.id} className={`toast ${toast.kind}`} onClick={() => dismissToast(toast.id)}>
-          {toast.message}
+          <span>{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              className="toast-action"
+              onClick={(e) => {
+                e.stopPropagation()
+                toast.action!.run()
+                dismissToast(toast.id)
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

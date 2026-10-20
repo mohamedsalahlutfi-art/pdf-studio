@@ -1,9 +1,13 @@
 import { create } from 'zustand'
 import type { Language, OpenedFile } from '../../../shared/types'
-import { exportDocument, EncryptedExportError } from '../lib/exportDocument'
+import type { ImageInput } from '../lib/buildPdf'
+import { EncryptedExportError, exportDocument, runPdfTask } from '../lib/exportDocument'
 import { commit, createHistory, redo, undo, type History } from '../lib/history'
 import { translate, type StringKey } from '../lib/i18n'
-import { newId, rotate, type DocState } from '../lib/model'
+import { displaySize } from '../lib/layout'
+import { newId, type DocState, type LabelRange, type PageRef } from '../lib/model'
+import * as ops from '../lib/pageOps'
+import { normalizeLabels } from '../lib/pageLabels'
 import { PasswordCancelledError } from '../lib/pdfjs'
 import * as platform from '../lib/platform'
 import { addSource, releaseSource } from '../lib/sources'
@@ -14,7 +18,10 @@ export const MAX_ZOOM = 8
 export interface Tab {
   id: string
   title: string
-  filePath: string | null
+  /** File the tab was opened from, if any. Never written unless the user asks to. */
+  originalPath: string | null
+  /** Where Ctrl+S writes. Set by the first save (Downloads) or by Save As. */
+  outputPath: string | null
   sourceIds: string[]
   history: History<DocState>
   /** The state last written to disk; the tab is dirty when `history.present` differs. */
@@ -25,18 +32,42 @@ export interface Tab {
   currentPage: number
   /** Set to ask the viewer to scroll; the nonce lets the same page be requested twice. */
   scrollTarget: { page: number; nonce: number } | null
+  /** Selected page ids (thumbnails). Not part of undo history. */
+  selection: string[]
+  anchorId: string | null
 }
 
 export interface Toast {
   id: string
   kind: 'info' | 'error'
   message: string
+  action?: { label: string; run: () => void }
 }
 
 export interface PasswordPrompt {
   fileName: string
   reason: 'need' | 'incorrect'
   resolve: (password: string | null) => void
+}
+
+export interface MenuItem {
+  label?: string
+  icon?: React.ReactNode
+  shortcut?: string
+  disabled?: boolean
+  danger?: boolean
+  /** Renders a separator when true. */
+  divider?: boolean
+  /** Renders a non-clickable section title. */
+  heading?: boolean
+  onClick?: () => void
+}
+
+export type Dialog = { kind: 'split' } | { kind: 'labels' } | null
+
+export interface SplitRequest {
+  groups: number[][]
+  output: 'downloads' | 'tabs'
 }
 
 type Theme = 'light' | 'dark'
@@ -56,11 +87,14 @@ interface AppState extends Preferences {
   toasts: Toast[]
   passwordPrompt: PasswordPrompt | null
   busy: StringKey | null
+  contextMenu: { x: number; y: number; items: MenuItem[] } | null
+  dialog: Dialog
 
   t: (key: StringKey) => string
   openFiles: (files: OpenedFile[]) => Promise<void>
   openFilesFromDialog: () => Promise<void>
   closeTab: (id: string) => void
+  closeOtherTabs: (id: string) => void
   setActive: (id: string) => void
   editDoc: (update: (state: DocState, tab: Tab) => DocState) => void
   undo: () => void
@@ -71,17 +105,42 @@ interface AppState extends Preferences {
   reportScale: (tabId: string, zoom: number) => void
   setCurrentPage: (tabId: string, page: number) => void
   goToPage: (page: number) => void
-  rotatePage: (delta: number) => void
-  save: (as: boolean) => Promise<void>
+
+  selectPage: (id: string, mode: 'single' | 'toggle' | 'range' | 'keep') => void
+  selectAll: () => void
+  /** Pages the page tools act on: the selection, or the current page when nothing is selected. */
+  targetIds: () => Set<string>
+  rotatePages: (delta: number) => void
+  deletePages: () => void
+  duplicatePages: () => void
+  movePages: (ids: string[], toIndex: number) => void
+  extractPages: () => void
+  insertBlank: (index?: number) => Promise<void>
+  insertFiles: (files: OpenedFile[], index?: number, tabId?: string) => Promise<void>
+  insertFromDialog: (index?: number) => Promise<void>
+  mergeTabInto: (sourceTabId: string, targetTabId: string, index?: number) => void
+  mergeAll: () => void
+  split: (request: SplitRequest) => Promise<void>
+  setLabels: (labels: LabelRange[] | null) => void
+
+  save: () => Promise<void>
+  saveAs: () => Promise<void>
+  saveOverOriginal: () => Promise<void>
+  showInFolder: (tabId: string) => void
+
+  openContextMenu: (x: number, y: number, items: MenuItem[]) => void
+  closeContextMenu: () => void
+  openDialog: (dialog: Dialog) => void
+
   toggleTheme: () => void
   toggleInvert: () => void
   toggleSidebar: () => void
   toggleLanguage: () => void
-  notify: (kind: Toast['kind'], message: string) => void
+  notify: (kind: Toast['kind'], message: string, action?: Toast['action']) => void
   dismissToast: (id: string) => void
 }
 
-const PREFS_KEY = 'pdf-studio:prefs'
+const PREFS_KEY = 'salah-pdf:prefs'
 
 function loadPreferences(): Preferences {
   const defaults: Preferences = {
@@ -106,14 +165,64 @@ function savePreferences(prefs: Preferences): void {
 }
 
 const clampZoom = (zoom: number): number => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
+const baseName = (name: string): string => name.replace(/\.[^.\\/]+$/, '')
+const fileNameOf = (path: string): string => path.split(/[\\/]/).pop() ?? path
 
 export const isDirty = (tab: Tab): boolean => tab.history.present !== tab.savedState
 
+const pagesOf = (sourceId: string, count: number): PageRef[] =>
+  Array.from({ length: count }, (_, i) => ({ id: newId('pg'), sourceId, sourceIndex: i, rotation: 0 }))
+
+function createTab(title: string, pages: PageRef[], sourceIds: string[], originalPath: string | null = null): Tab {
+  const doc: DocState = { pages, labels: null }
+  return {
+    id: newId('tab'),
+    title,
+    originalPath,
+    outputPath: null,
+    sourceIds,
+    history: createHistory(doc),
+    // A file opened from disk starts clean; anything assembled in the app starts unsaved.
+    savedState: originalPath ? doc : { pages: [], labels: null },
+    zoom: 1,
+    fitWidth: true,
+    currentPage: 0,
+    scrollTarget: null,
+    selection: [],
+    anchorId: null
+  }
+}
+
+/** pdf-lib embeds PNG and JPEG directly; other image formats are re-encoded to PNG first. */
+async function toImageInput(file: OpenedFile): Promise<ImageInput> {
+  if (/\.png$/i.test(file.name)) return { bytes: file.data, kind: 'png' }
+  if (/\.jpe?g$/i.test(file.name)) return { bytes: file.data, kind: 'jpg' }
+  const bitmap = await createImageBitmap(new Blob([file.data as BlobPart]))
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+  const blob = await canvas.convertToBlob({ type: 'image/png' })
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), kind: 'png' }
+}
+
 export const useApp = create<AppState>((set, get) => {
   const activeTab = (): Tab | undefined => get().tabs.find((t) => t.id === get().activeId)
+  const message = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
   const updateTab = (id: string, update: (tab: Tab) => Partial<Tab>): void =>
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, ...update(t) } : t)) }))
+
+  /** Commits a document edit to a tab's history and drops selections of pages that no longer exist. */
+  const commitDoc = (tabId: string, next: DocState, patch: Partial<Tab> = {}): void =>
+    updateTab(tabId, (t) => {
+      const history = commit(t.history, next)
+      const ids = new Set(next.pages.map((p) => p.id))
+      return {
+        history,
+        selection: (patch.selection ?? t.selection).filter((id) => ids.has(id)),
+        currentPage: Math.min(t.currentPage, Math.max(0, next.pages.length - 1)),
+        ...patch
+      }
+    })
 
   const updatePreferences = (patch: Partial<Preferences>): void => {
     set(patch)
@@ -135,6 +244,76 @@ export const useApp = create<AppState>((set, get) => {
       })
     )
 
+  const bumpLayout = (): void => set((s) => ({ layoutVersion: s.layoutVersion + 1 }))
+
+  const loadBytes = async (name: string, bytes: Uint8Array): Promise<{ sourceId: string; pages: PageRef[] }> => {
+    const source = await addSource(name, bytes, requestPassword(name), bumpLayout)
+    return { sourceId: source.id, pages: pagesOf(source.id, source.pageCount) }
+  }
+
+  /**
+   * Turns files into pages. Each PDF is one unit; consecutive images are
+   * combined into one generated PDF so they keep their order.
+   */
+  const filesToUnits = async (
+    files: OpenedFile[]
+  ): Promise<{ name: string; path: string | null; sourceIds: string[]; pages: PageRef[] }[]> => {
+    const units: { name: string; path: string | null; sourceIds: string[]; pages: PageRef[] }[] = []
+    let images: OpenedFile[] = []
+    const flushImages = async (): Promise<void> => {
+      if (!images.length) return
+      const batch = images
+      images = []
+      const inputs = await Promise.all(batch.map(toImageInput))
+      const bytes = await runPdfTask({ type: 'images', images: inputs }, inputs.map((i) => i.bytes.buffer as ArrayBuffer))
+      const name = `${baseName(batch[0].name)}.pdf`
+      const { sourceId, pages } = await loadBytes(name, bytes)
+      units.push({ name, path: null, sourceIds: [sourceId], pages })
+    }
+    for (const file of files) {
+      try {
+        if (platform.isImageName(file.name)) {
+          images.push(file)
+          continue
+        }
+        await flushImages()
+        const { sourceId, pages } = await loadBytes(file.name, file.data)
+        units.push({ name: file.name, path: file.path, sourceIds: [sourceId], pages })
+      } catch (error) {
+        if (!(error instanceof PasswordCancelledError)) get().notify('error', `${get().t('openFailed')}: ${file.name} (${message(error)})`)
+      }
+    }
+    try {
+      await flushImages()
+    } catch (error) {
+      get().notify('error', `${get().t('openFailed')}: ${message(error)}`)
+    }
+    return units
+  }
+
+  const withBusy = async <T,>(key: StringKey, work: () => Promise<T>): Promise<T> => {
+    set({ busy: key })
+    try {
+      return await work()
+    } finally {
+      set({ busy: null })
+    }
+  }
+
+  const savedToast = (path: string | null): void => {
+    const { t, notify } = get()
+    if (!path) return notify('info', t('saved'))
+    notify('info', `${t('savedTo')} ${fileNameOf(path)}`, { label: t('showInFolder'), run: () => platform.showInFolder(path) })
+  }
+
+  const saveError = (error: unknown): void => {
+    const { t, notify } = get()
+    notify('error', error instanceof EncryptedExportError ? t('encryptedSave') : `${t('saveFailed')}: ${message(error)}`)
+  }
+
+  const docFromGroups = (state: DocState, groups: number[][]): DocState[] =>
+    groups.map((group) => ({ pages: group.map((i) => ops.clonePage(state.pages[i])), labels: null }))
+
   return {
     ...loadPreferences(),
     tabs: [],
@@ -143,50 +322,24 @@ export const useApp = create<AppState>((set, get) => {
     toasts: [],
     passwordPrompt: null,
     busy: null,
+    contextMenu: null,
+    dialog: null,
 
     t: (key) => translate(get().language, key),
 
     async openFiles(files) {
-      for (const file of files) {
-        const existing = file.path && get().tabs.find((t) => t.filePath === file.path)
-        if (existing) {
-          set({ activeId: existing.id })
-          continue
-        }
-        set({ busy: 'loading' })
-        try {
-          const source = await addSource(file.name, file.data, requestPassword(file.name), () =>
-            set((s) => ({ layoutVersion: s.layoutVersion + 1 }))
-          )
-          const doc: DocState = {
-            pages: Array.from({ length: source.pageCount }, (_, i) => ({
-              id: newId('pg'),
-              sourceId: source.id,
-              sourceIndex: i,
-              rotation: 0
-            }))
-          }
-          const tab: Tab = {
-            id: newId('tab'),
-            title: file.name,
-            filePath: file.path,
-            sourceIds: [source.id],
-            history: createHistory(doc),
-            savedState: doc,
-            zoom: 1,
-            fitWidth: true,
-            currentPage: 0,
-            scrollTarget: null
-          }
+      const fresh = files.filter((file) => {
+        const existing = file.path && get().tabs.find((t) => t.originalPath === file.path)
+        if (existing) set({ activeId: existing.id })
+        return !existing
+      })
+      if (!fresh.length) return
+      await withBusy('loading', async () => {
+        for (const unit of await filesToUnits(fresh)) {
+          const tab = createTab(unit.name, unit.pages, unit.sourceIds, unit.path)
           set((s) => ({ tabs: [...s.tabs, tab], activeId: tab.id }))
-        } catch (error) {
-          if (!(error instanceof PasswordCancelledError)) {
-            get().notify('error', `${get().t('openFailed')}: ${file.name} (${error instanceof Error ? error.message : error})`)
-          }
-        } finally {
-          set({ busy: null })
         }
-      }
+      })
     },
 
     async openFilesFromDialog() {
@@ -198,7 +351,7 @@ export const useApp = create<AppState>((set, get) => {
       const index = tabs.findIndex((tab) => tab.id === id)
       if (index < 0) return
       const tab = tabs[index]
-      if (isDirty(tab) && !window.confirm(t('confirmClose'))) return
+      if (isDirty(tab) && !window.confirm(`${tab.title}\n\n${t('confirmClose')}`)) return
       const remaining = tabs.filter((x) => x.id !== id)
       for (const sourceId of tab.sourceIds) {
         if (!remaining.some((x) => x.sourceIds.includes(sourceId))) releaseSource(sourceId)
@@ -209,12 +362,16 @@ export const useApp = create<AppState>((set, get) => {
       })
     },
 
+    closeOtherTabs(id) {
+      for (const tab of get().tabs.filter((t) => t.id !== id)) get().closeTab(tab.id)
+      set({ activeId: id })
+    },
+
     setActive: (id) => set({ activeId: id }),
 
     editDoc(update) {
       const tab = activeTab()
-      if (!tab) return
-      updateTab(tab.id, (t) => ({ history: commit(t.history, update(t.history.present, t)) }))
+      if (tab) commitDoc(tab.id, update(tab.history.present, tab))
     },
 
     undo() {
@@ -242,13 +399,9 @@ export const useApp = create<AppState>((set, get) => {
       if (tab) updateTab(tab.id, () => ({ fitWidth: true }))
     },
 
-    reportScale(tabId, zoom) {
-      updateTab(tabId, () => ({ zoom }))
-    },
+    reportScale: (tabId, zoom) => updateTab(tabId, () => ({ zoom })),
 
-    setCurrentPage(tabId, page) {
-      updateTab(tabId, () => ({ currentPage: page }))
-    },
+    setCurrentPage: (tabId, page) => updateTab(tabId, () => ({ currentPage: page })),
 
     goToPage(page) {
       const tab = activeTab()
@@ -260,56 +413,243 @@ export const useApp = create<AppState>((set, get) => {
       }))
     },
 
-    rotatePage(delta) {
-      get().editDoc((state, tab) => ({
-        pages: state.pages.map((p, i) => (i === tab.currentPage ? { ...p, rotation: rotate(p.rotation, delta) } : p))
-      }))
+    selectPage(id, mode) {
+      const tab = activeTab()
+      if (!tab) return
+      const pages = tab.history.present.pages
+      if (mode === 'keep' && tab.selection.includes(id)) return
+      if (mode === 'toggle') {
+        const selection = tab.selection.includes(id) ? tab.selection.filter((x) => x !== id) : [...tab.selection, id]
+        return updateTab(tab.id, () => ({ selection, anchorId: id }))
+      }
+      if (mode === 'range' && tab.anchorId) {
+        const a = pages.findIndex((p) => p.id === tab.anchorId)
+        const b = pages.findIndex((p) => p.id === id)
+        if (a >= 0 && b >= 0) {
+          const [from, to] = a < b ? [a, b] : [b, a]
+          return updateTab(tab.id, () => ({ selection: pages.slice(from, to + 1).map((p) => p.id) }))
+        }
+      }
+      updateTab(tab.id, () => ({ selection: [id], anchorId: id }))
     },
 
-    async save(as) {
+    selectAll() {
       const tab = activeTab()
-      const { t, notify } = get()
+      if (tab) updateTab(tab.id, (t) => ({ selection: t.history.present.pages.map((p) => p.id) }))
+    },
+
+    targetIds() {
+      const tab = activeTab()
+      if (!tab) return new Set()
+      if (tab.selection.length) return new Set(tab.selection)
+      const current = tab.history.present.pages[tab.currentPage]
+      return new Set(current ? [current.id] : [])
+    },
+
+    rotatePages(delta) {
+      const ids = get().targetIds()
+      get().editDoc((state) => ops.rotatePages(state, ids, delta))
+    },
+
+    deletePages() {
+      const tab = activeTab()
+      if (!tab) return
+      const ids = get().targetIds()
+      if (ids.size >= tab.history.present.pages.length) return get().notify('error', get().t('cannotDeleteAll'))
+      commitDoc(tab.id, ops.removePages(tab.history.present, ids), { selection: [] })
+    },
+
+    duplicatePages() {
+      const tab = activeTab()
+      if (!tab) return
+      const { state, created } = ops.duplicatePages(tab.history.present, get().targetIds())
+      commitDoc(tab.id, state, { selection: created.map((p) => p.id) })
+    },
+
+    movePages(ids, toIndex) {
+      const tab = activeTab()
+      if (tab) commitDoc(tab.id, ops.movePages(tab.history.present, new Set(ids), toIndex))
+    },
+
+    extractPages() {
+      const tab = activeTab()
+      if (!tab) return
+      const ids = get().targetIds()
+      const pages = tab.history.present.pages.filter((p) => ids.has(p.id)).map(ops.clonePage)
+      if (!pages.length) return
+      const title = `${baseName(tab.title)} - ${get().t('extract')}.pdf`
+      const next = createTab(title, pages, [...new Set(pages.map((p) => p.sourceId))])
+      set((s) => ({ tabs: [...s.tabs, next], activeId: next.id }))
+    },
+
+    async insertBlank(index) {
+      const tab = activeTab()
+      if (!tab) return
+      const pages = tab.history.present.pages
+      const at = index ?? Math.min(pages.length, tab.currentPage + 1)
+      const neighbour = pages[Math.max(0, at - 1)]
+      const size = neighbour ? displaySize(neighbour) : { width: 595.28, height: 841.89 }
+      const bytes = await runPdfTask({ type: 'blank', width: size.width, height: size.height })
+      const { sourceId, pages: blank } = await loadBytes('blank.pdf', bytes)
+      const target = get().tabs.find((t) => t.id === tab.id)!
+      updateTab(tab.id, (t) => ({ sourceIds: [...t.sourceIds, sourceId] }))
+      commitDoc(tab.id, ops.insertPages(target.history.present, at, blank), { selection: blank.map((p) => p.id) })
+    },
+
+    async insertFiles(files, index, tabId) {
+      const id = tabId ?? get().activeId
+      if (!id || !files.length) return
+      await withBusy('loading', async () => {
+        const units = await filesToUnits(files)
+        const tab = get().tabs.find((t) => t.id === id)
+        if (!tab || !units.length) return
+        const pages = units.flatMap((u) => u.pages)
+        const at = index ?? tab.history.present.pages.length
+        updateTab(id, (t) => ({ sourceIds: [...new Set([...t.sourceIds, ...units.flatMap((u) => u.sourceIds)])] }))
+        commitDoc(id, ops.insertPages(tab.history.present, at, pages), { selection: pages.map((p) => p.id) })
+        set({ activeId: id })
+        get().goToPage(at)
+      })
+    },
+
+    async insertFromDialog(index) {
+      const files = await platform.openDialog()
+      if (files.length) await get().insertFiles(files, index)
+    },
+
+    mergeTabInto(sourceTabId, targetTabId, index) {
+      if (sourceTabId === targetTabId) return
+      const source = get().tabs.find((t) => t.id === sourceTabId)
+      const target = get().tabs.find((t) => t.id === targetTabId)
+      if (!source || !target) return
+      const pages = source.history.present.pages.map(ops.clonePage)
+      const at = index ?? target.history.present.pages.length
+      updateTab(targetTabId, (t) => ({ sourceIds: [...new Set([...t.sourceIds, ...source.sourceIds])] }))
+      commitDoc(targetTabId, ops.insertPages(target.history.present, at, pages), { selection: pages.map((p) => p.id) })
+      // The source's pages now live in the target, so it can close without asking.
+      set((s) => ({ tabs: s.tabs.filter((t) => t.id !== sourceTabId), activeId: targetTabId }))
+      get().goToPage(at)
+      get().notify('info', `${get().t('mergedInto')} ${target.title}`)
+    },
+
+    mergeAll() {
+      const { tabs, t } = get()
+      if (tabs.length < 2) return get().notify('info', t('needTwoFiles'))
+      const pages = tabs.flatMap((tab) => tab.history.present.pages.map(ops.clonePage))
+      const next = createTab(`${t('mergedName')}.pdf`, pages, [...new Set(tabs.flatMap((tab) => tab.sourceIds))])
+      set((s) => ({ tabs: [...s.tabs, next], activeId: next.id }))
+      get().notify('info', `${t('mergedCount')} ${tabs.length}`)
+    },
+
+    async split({ groups, output }) {
+      const tab = activeTab()
+      if (!tab || !groups.length) return
+      const parts = docFromGroups(tab.history.present, groups)
+      const name = baseName(tab.title)
+      set({ dialog: null })
+      if (output === 'tabs') {
+        const created = parts.map((doc, i) =>
+          createTab(`${name} - ${i + 1}.pdf`, doc.pages, [...new Set(doc.pages.map((p) => p.sourceId))])
+        )
+        set((s) => ({ tabs: [...s.tabs, ...created], activeId: created[0].id }))
+        return
+      }
+      await withBusy('saving', async () => {
+        try {
+          let last: string | null = null
+          for (const [i, doc] of parts.entries()) {
+            last = await platform.saveToDownloads(`${name} - ${i + 1}.pdf`, await exportDocument(doc))
+          }
+          get().notify(
+            'info',
+            `${get().t('splitDone')} ${parts.length}`,
+            last ? { label: get().t('showInFolder'), run: () => platform.showInFolder(last!) } : undefined
+          )
+        } catch (error) {
+          saveError(error)
+        }
+      })
+    },
+
+    setLabels(labels) {
+      const tab = activeTab()
+      if (!tab) return
+      const count = tab.history.present.pages.length
+      const normalized = labels && normalizeLabels(labels, count)
+      commitDoc(tab.id, { ...tab.history.present, labels: normalized?.length ? normalized : null })
+      set({ dialog: null })
+    },
+
+    async save() {
+      const tab = activeTab()
       if (!tab || get().busy) return
       const state = tab.history.present
-      set({ busy: 'saving' })
-      try {
-        const data = await exportDocument(state)
-        if (!as && tab.filePath && platform.isDesktop) {
-          await platform.save(tab.filePath, data)
-          updateTab(tab.id, () => ({ savedState: state }))
-        } else {
-          const path = await platform.saveAs(tab.title, data)
-          if (path) {
-            const title = path.split(/[\\/]/).pop() ?? tab.title
-            updateTab(tab.id, () => ({ savedState: state, filePath: path, title }))
-          } else if (!platform.isDesktop) {
-            updateTab(tab.id, () => ({ savedState: state }))
-          } else {
-            return
-          }
+      await withBusy('saving', async () => {
+        try {
+          const data = await exportDocument(state)
+          let path = tab.outputPath
+          if (path) await platform.save(path, data)
+          else path = await platform.saveToDownloads(tab.title, data)
+          updateTab(tab.id, () => ({ savedState: state, outputPath: path ?? null }))
+          savedToast(path)
+        } catch (error) {
+          saveError(error)
         }
-        notify('info', t('saved'))
-      } catch (error) {
-        notify(
-          'error',
-          error instanceof EncryptedExportError
-            ? t('encryptedSave')
-            : `${t('saveFailed')}: ${error instanceof Error ? error.message : error}`
-        )
-      } finally {
-        set({ busy: null })
-      }
+      })
     },
+
+    async saveAs() {
+      const tab = activeTab()
+      if (!tab || get().busy) return
+      const state = tab.history.present
+      await withBusy('saving', async () => {
+        try {
+          const path = await platform.saveAs(tab.title, await exportDocument(state))
+          if (!path && platform.isDesktop) return
+          updateTab(tab.id, () => ({ savedState: state, outputPath: path, title: path ? fileNameOf(path) : tab.title }))
+          savedToast(path)
+        } catch (error) {
+          saveError(error)
+        }
+      })
+    },
+
+    async saveOverOriginal() {
+      const tab = activeTab()
+      if (!tab?.originalPath || get().busy) return
+      if (!window.confirm(`${get().t('confirmOverwrite')}\n${tab.originalPath}`)) return
+      const state = tab.history.present
+      const path = tab.originalPath
+      await withBusy('saving', async () => {
+        try {
+          await platform.save(path, await exportDocument(state))
+          updateTab(tab.id, () => ({ savedState: state, outputPath: path }))
+          savedToast(path)
+        } catch (error) {
+          saveError(error)
+        }
+      })
+    },
+
+    showInFolder(tabId) {
+      const tab = get().tabs.find((t) => t.id === tabId)
+      const path = tab?.outputPath ?? tab?.originalPath
+      if (path) platform.showInFolder(path)
+    },
+
+    openContextMenu: (x, y, items) => set({ contextMenu: { x, y, items } }),
+    closeContextMenu: () => set({ contextMenu: null }),
+    openDialog: (dialog) => set({ dialog }),
 
     toggleTheme: () => updatePreferences({ theme: get().theme === 'dark' ? 'light' : 'dark' }),
     toggleInvert: () => updatePreferences({ invertPages: !get().invertPages }),
     toggleSidebar: () => updatePreferences({ sidebarOpen: !get().sidebarOpen }),
     toggleLanguage: () => updatePreferences({ language: get().language === 'ar' ? 'en' : 'ar' }),
 
-    notify(kind, message) {
+    notify(kind, text, action) {
       const id = newId('toast')
-      set((s) => ({ toasts: [...s.toasts, { id, kind, message }] }))
-      setTimeout(() => get().dismissToast(id), kind === 'error' ? 8000 : 2500)
+      set((s) => ({ toasts: [...s.toasts, { id, kind, message: text, action }] }))
+      setTimeout(() => get().dismissToast(id), kind === 'error' ? 8000 : action ? 6000 : 2500)
     },
 
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))

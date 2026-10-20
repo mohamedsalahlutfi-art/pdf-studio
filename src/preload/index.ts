@@ -15,6 +15,9 @@ const api = {
   save: (path: string, data: Uint8Array): Promise<void> => ipcRenderer.invoke('file:save', path, data),
   saveAs: (defaultName: string, data: Uint8Array): Promise<string | null> =>
     ipcRenderer.invoke('dialog:saveAs', defaultName, data),
+  saveToDownloads: (fileName: string, data: Uint8Array): Promise<string> =>
+    ipcRenderer.invoke('file:saveToDownloads', fileName, data),
+  showInFolder: (path: string): void => ipcRenderer.send('file:showInFolder', path),
   pathForFile: (file: File): string | null => webUtils.getPathForFile(file) || null,
   setDirty: (dirty: boolean): void => ipcRenderer.send('app:setDirty', dirty),
   setLanguage: (language: Language): void => ipcRenderer.send('app:setLanguage', language),

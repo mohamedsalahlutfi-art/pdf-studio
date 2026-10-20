@@ -13,7 +13,7 @@ export async function openDialog(): Promise<OpenedFile[]> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'application/pdf,.pdf'
+    input.accept = 'application/pdf,.pdf,image/*'
     input.multiple = true
     input.onchange = async () => resolve(await readBrowserFiles([...(input.files ?? [])]))
     input.click()
@@ -28,13 +28,25 @@ async function readBrowserFiles(files: File[]): Promise<OpenedFile[]> {
 
 /** Reads files dropped onto the window. On desktop they are re-read by the main process so they can be saved in place. */
 export async function openDropped(files: File[]): Promise<OpenedFile[]> {
-  const pdfs = files.filter((f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'))
+  const usable = files.filter((f) => isPdfName(f.name) || isImageName(f.name))
   if (api) {
-    const paths = pdfs.map((f) => api.pathForFile(f)).filter((p): p is string => Boolean(p))
-    if (paths.length === pdfs.length) return api.openPaths(paths)
+    const paths = usable.map((f) => api.pathForFile(f)).filter((p): p is string => Boolean(p))
+    if (paths.length === usable.length) return api.openPaths(paths)
   }
-  return readBrowserFiles(pdfs)
+  return readBrowserFiles(usable)
 }
+
+export const isPdfName = (name: string): boolean => /\.pdf$/i.test(name)
+export const isImageName = (name: string): boolean => /\.(png|jpe?g|webp|gif|bmp)$/i.test(name)
+
+/** Writes a new file into the Downloads folder without asking, never overwriting an existing one. */
+export async function saveToDownloads(fileName: string, data: Uint8Array): Promise<string | null> {
+  if (api) return api.saveToDownloads(fileName, data)
+  await saveAs(fileName, data)
+  return null
+}
+
+export const showInFolder = (path: string): void => api?.showInFolder(path)
 
 export async function save(path: string, data: Uint8Array): Promise<void> {
   if (!api) throw new Error('Saving in place requires the desktop app')

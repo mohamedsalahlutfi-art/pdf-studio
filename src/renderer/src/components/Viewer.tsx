@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { computeLayout, displaySize, pageAt, PAGE_GAP, visibleRange } from '../lib/layout'
 import { useApp, type Tab } from '../store/useApp'
+import { pageMenuItems } from './menus'
 import { PageCanvas } from './PageCanvas'
 
 const SIDE_PADDING = 48
@@ -99,6 +100,13 @@ export function Viewer({ tab }: { tab: Tab }): React.JSX.Element {
         className="page"
         data-page={i + 1}
         style={{ top: layout.tops[i], width: size.width, height: size.height, left: (contentWidth - size.width) / 2 }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          const s = useApp.getState()
+          s.selectPage(pages[i].id, 'keep')
+          s.setCurrentPage(tab.id, i)
+          s.openContextMenu(e.clientX, e.clientY, pageMenuItems(i))
+        }}
       >
         <PageCanvas page={pages[i]} width={size.width} height={size.height} priority={0} delay={120} />
       </div>

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
-import { basename, extname, join, resolve, sep } from 'node:path'
+import { access, readFile, writeFile } from 'node:fs/promises'
+import { basename, extname, join, parse, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Language, OpenedFile } from '../shared/types'
 import { buildMenu } from './menu'
@@ -23,17 +23,35 @@ const pendingPaths: string[] = []
 // The renderer may only write to PDFs the user opened or picked in a dialog.
 const writablePaths = new Set<string>()
 
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp']
 const isPdfPath = (p: string): boolean => extname(p).toLowerCase() === '.pdf'
+const isOpenablePath = (p: string): boolean =>
+  isPdfPath(p) || IMAGE_EXTENSIONS.includes(extname(p).slice(1).toLowerCase())
 
-async function readPdfFiles(paths: string[]): Promise<OpenedFile[]> {
+/** Reads PDFs and images. Only PDFs become writable: images are converted, never overwritten. */
+async function readFiles(paths: string[]): Promise<OpenedFile[]> {
   const files: OpenedFile[] = []
-  for (const p of paths.filter(isPdfPath)) {
+  for (const p of paths.filter(isOpenablePath)) {
     const absolute = resolve(p)
     const data = await readFile(absolute)
-    writablePaths.add(absolute)
+    if (isPdfPath(absolute)) writablePaths.add(absolute)
     files.push({ name: basename(absolute), path: absolute, data: new Uint8Array(data) })
   }
   return files
+}
+
+const exists = (p: string): Promise<boolean> =>
+  access(p).then(
+    () => true,
+    () => false
+  )
+
+/** Picks `name.pdf`, or `name (2).pdf`, `name (3).pdf`… if taken, in the given folder. */
+async function uniquePath(folder: string, fileName: string): Promise<string> {
+  const { name } = parse(fileName)
+  let candidate = join(folder, `${name}.pdf`)
+  for (let n = 2; await exists(candidate); n++) candidate = join(folder, `${name} (${n}).pdf`)
+  return candidate
 }
 
 async function openPathsInWindow(paths: string[]): Promise<void> {
@@ -42,14 +60,14 @@ async function openPathsInWindow(paths: string[]): Promise<void> {
     return
   }
   try {
-    const files = await readPdfFiles(paths)
+    const files = await readFiles(paths)
     if (files.length) mainWindow.webContents.send('files:opened', files)
   } catch (error) {
-    dialog.showErrorBox('PDF Studio', String(error))
+    dialog.showErrorBox('Salah PDF', String(error))
   }
 }
 
-const pdfArgs = (argv: string[]): string[] => argv.filter((a) => !a.startsWith('-') && isPdfPath(a))
+const pdfArgs = (argv: string[]): string[] => argv.filter((a) => !a.startsWith('-') && isOpenablePath(a))
 
 function createWindow(): void {
   rendererReady = false
@@ -60,7 +78,7 @@ function createWindow(): void {
     minHeight: 480,
     show: false,
     backgroundColor: '#1d1f23',
-    title: 'PDF Studio',
+    title: 'Salah PDF',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -108,12 +126,27 @@ function registerIpc(): void {
     const win = BrowserWindow.fromWebContents(event.sender)!
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      filters: [
+        { name: 'PDF & Images', extensions: ['pdf', ...IMAGE_EXTENSIONS] },
+        { name: 'PDF', extensions: ['pdf'] },
+        { name: 'Images', extensions: IMAGE_EXTENSIONS }
+      ]
     })
-    return result.canceled ? [] : readPdfFiles(result.filePaths)
+    return result.canceled ? [] : readFiles(result.filePaths)
   })
 
-  ipcMain.handle('file:openPaths', (_event, paths: string[]) => readPdfFiles(paths))
+  ipcMain.handle('file:openPaths', (_event, paths: string[]) => readFiles(paths))
+
+  ipcMain.handle('file:saveToDownloads', async (_event, fileName: string, data: Uint8Array) => {
+    const target = await uniquePath(app.getPath('downloads'), basename(fileName))
+    await writeFile(target, data)
+    writablePaths.add(resolve(target))
+    return target
+  })
+
+  ipcMain.on('file:showInFolder', (_event, path: string) => {
+    if (writablePaths.has(resolve(path))) shell.showItemInFolder(path)
+  })
 
   ipcMain.handle('file:save', async (_event, path: string, data: Uint8Array) => {
     const absolute = resolve(path)

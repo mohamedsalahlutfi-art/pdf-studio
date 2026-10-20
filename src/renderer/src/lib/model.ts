@@ -10,9 +10,24 @@ export interface PageRef {
   rotation: Rotation
 }
 
+/** PDF page label styles: decimal, roman, letters, or prefix only. */
+export type LabelStyle = 'D' | 'r' | 'R' | 'a' | 'A' | 'none'
+
+/** A page-label range, as in the PDF /PageLabels number tree. */
+export interface LabelRange {
+  /** Zero-based index of the first page the range applies to. */
+  startIndex: number
+  style: LabelStyle
+  prefix: string
+  /** Number of the first page in the range (1 = "1", "i", "a"…). */
+  start: number
+}
+
 /** The editable state of a document. Every edit produces a new DocState. */
 export interface DocState {
   pages: PageRef[]
+  /** Custom page numbering, or null to number pages 1…n. */
+  labels: LabelRange[] | null
 }
 
 export interface Size {
