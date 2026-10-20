@@ -205,6 +205,23 @@ button {
   display: flex;
   flex: 1;
   min-height: 0;
+  /* Lay the panels out left-to-right regardless of language: tool rail on the
+     left, then thumbnails, the document, and the properties/comments panel on
+     the right — the familiar editor arrangement. Text inside each panel keeps
+     its own direction. */
+  direction: ltr;
+}
+
+.tool-rail,
+.thumbnails,
+.right-panel {
+  direction: rtl;
+}
+
+:root[dir='ltr'] .tool-rail,
+:root[dir='ltr'] .thumbnails,
+:root[dir='ltr'] .right-panel {
+  direction: ltr;
 }
 
 .doc-area {
