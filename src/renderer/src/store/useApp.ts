@@ -77,6 +77,7 @@ export type Dialog =
   | { kind: 'export' }
   | { kind: 'applyPages'; ref: AnnotationRef }
   | { kind: 'crop'; ref: AnnotationRef }
+  | { kind: 'about' }
   | null
 
 export type Tool =

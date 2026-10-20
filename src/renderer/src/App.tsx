@@ -6,7 +6,9 @@ import { isDirty, useActiveTab, useApp } from './store/useApp'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialogs } from './components/Dialogs'
 import { PasswordDialog, Toasts, Welcome } from './components/Overlays'
+import { MenuBar } from './components/MenuBar'
 import { ToolRail, ToolStrip } from './components/Ribbon'
+import { StatusBar } from './components/StatusBar'
 import { TabBar } from './components/TabBar'
 import { Thumbnails } from './components/Thumbnails'
 import { Toolbar } from './components/Toolbar'
@@ -156,6 +158,7 @@ export function App(): React.JSX.Element {
         void platform.openDropped([...e.dataTransfer.files]).then((files) => useApp.getState().openFiles(files))
       }}
     >
+      <MenuBar />
       <TabBar />
       <Toolbar />
       <main className="workspace">
@@ -172,6 +175,7 @@ export function App(): React.JSX.Element {
           )}
         </section>
       </main>
+      <StatusBar />
       {dragging && <div className="drop-overlay" />}
       <ContextMenu />
       <Dialogs />

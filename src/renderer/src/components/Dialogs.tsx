@@ -345,12 +345,38 @@ function SignatureDialog() {
   )
 }
 
+function AboutDialog() {
+  const t = useApp((s) => s.t)
+  const close = () => useApp.getState().openDialog(null)
+  return (
+    <Modal title={t('aboutTitle')} onClose={close}>
+      <p className="muted">{t('aboutBody')}</p>
+      <p className="muted" dir="ltr">Version 1.0.0</p>
+      <ul className="shortcut-list" dir="ltr">
+        <li><kbd>Ctrl+O</kbd> Open</li>
+        <li><kbd>Ctrl+S</kbd> Save</li>
+        <li><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd> Undo / Redo</li>
+        <li><kbd>Ctrl+R</kbd> Rotate</li>
+        <li><kbd>Ctrl+D</kbd> Duplicate</li>
+        <li><kbd>Ctrl+E</kbd> Extract</li>
+        <li><kbd>Ctrl+M</kbd> Merge all</li>
+        <li><kbd>Ctrl+Shift+E</kbd> Export & Compress</li>
+        <li><kbd>F4</kbd> Thumbnails</li>
+      </ul>
+      <div className="modal-actions">
+        <button type="button" className="primary" onClick={close}>{t('ok')}</button>
+      </div>
+    </Modal>
+  )
+}
+
 export function Dialogs(): React.JSX.Element | null {
   const dialog = useApp((s) => s.dialog)
   const tab = useActiveTab()
   if (!dialog) return null
   if (dialog.kind === 'signature') return <SignatureDialog />
   if (dialog.kind === 'applyPages' || dialog.kind === 'crop') return <ImageDialogs />
+  if (dialog.kind === 'about') return <AboutDialog />
   if (!tab) return null
   if (dialog.kind === 'export') return <ExportDialog key={tab.id} />
   if (dialog.kind === 'split') return <SplitDialog key={tab.id} tab={tab} />
