@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
+import { accessSync, constants, mkdirSync, writeFileSync } from 'node:fs'
 import { access, readFile, writeFile } from 'node:fs/promises'
-import { basename, extname, join, parse, resolve, sep } from 'node:path'
+import { basename, dirname, extname, join, parse, resolve, sep } from 'node:path'
 import { userInfo } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import type { Language, OpenedFile } from '../shared/types'
@@ -8,6 +9,27 @@ import { buildMenu } from './menu'
 
 const isDev = !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL)
 const RENDERER_DIR = join(__dirname, '../renderer')
+
+/**
+ * Portable mode: keep settings and the signature library in a `data` folder
+ * next to the executable, so nothing is written to the host machine and the
+ * app carries its state when the folder is moved. If that location is not
+ * writable (read-only USB, Program Files), fall back to the OS user-data
+ * directory so saving never silently fails.
+ */
+function usePortableDataDir(): void {
+  if (!app.isPackaged) return
+  const dataDir = join(dirname(app.getPath('exe')), 'data')
+  try {
+    mkdirSync(dataDir, { recursive: true })
+    accessSync(dataDir, constants.W_OK)
+    writeFileSync(join(dataDir, '.writable'), '')
+    app.setPath('userData', dataDir)
+  } catch {
+    // Keep the default OS user-data directory; the app still works, just not portable.
+  }
+}
+usePortableDataDir()
 
 // The production renderer is served from app://bundle/ instead of file:// so
 // pdf.js can fetch its fonts, CMaps and WASM decoders like on a normal origin.

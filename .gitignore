@@ -4,3 +4,5 @@ release/
 src/renderer/public/pdfjs/
 *.log
 .DS_Store
+dist/
+dist-portable/

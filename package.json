@@ -1,7 +1,7 @@
 {
   "name": "salah-pdf",
-  "version": "0.1.0",
-  "description": "Salah PDF — fast desktop PDF editor built with Electron",
+  "version": "1.0.0",
+  "description": "Salah PDF — a professional desktop PDF editor",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs && node tests/e2e/annotate.cjs && node tests/e2e/export.cjs",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "portable": "node scripts/build-portable.mjs",
+    "test:portable": "node tests/e2e/packaged.cjs \"dist-portable/stage/Salah PDF 1.0.0/Salah PDF.exe\" && node tests/e2e/portable-data.cjs \"dist-portable/stage/Salah PDF 1.0.0/Salah PDF.exe\""
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
@@ -40,10 +42,14 @@
     "appId": "com.salahpdf.app",
     "productName": "Salah PDF",
     "directories": {
-      "output": "release"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "!**/*.map",
+      "!node_modules/**/*",
+      "package.json"
     ],
     "fileAssociations": [
       {
@@ -54,8 +60,9 @@
     ],
     "win": {
       "target": [
-        "nsis"
-      ]
+        "zip"
+      ],
+      "artifactName": "Salah-PDF-${version}-win-${arch}.${ext}"
     },
     "mac": {
       "target": [
@@ -65,10 +72,20 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "dir"
       ],
       "category": "Office"
     },
-    "artifactName": "Salah-PDF-Setup-${version}.${ext}"
-  }
+    "artifactName": "Salah-PDF-Setup-${version}.${ext}",
+    "copyright": "Copyright © 2026 Mohamed Salah Lutfi",
+    "asar": true,
+    "portable": {
+      "artifactName": "Salah-PDF-Portable-${version}.${ext}"
+    },
+    "forceCodeSigning": false
+  },
+  "author": {
+    "name": "Mohamed Salah Lutfi"
+  },
+  "license": "MIT"
 }
