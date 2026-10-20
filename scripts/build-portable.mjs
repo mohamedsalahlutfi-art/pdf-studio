@@ -9,6 +9,7 @@
 // needed on the target machine to RUN the result — only to build it here.
 //
 // Usage: node scripts/build-portable.mjs
+import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { deflateRawSync } from 'node:zlib'
@@ -145,7 +146,12 @@ log('creating zip')
 const zipOut = join(dist, `Salah-PDF-Portable-${VERSION}.zip`)
 zipFolder(stage, zipOut)
 rmSync(appStage, { recursive: true, force: true })
+// A SHA-256 so recipients can verify the download arrived intact and unmodified.
+const sha = createHash('sha256').update(readFileSync(zipOut)).digest('hex')
+const checksumPath = `${zipOut}.sha256.txt`
+writeFileSync(checksumPath, `${sha}  ${zipOut.split('/').pop()}\n`)
 log(`done: ${relative(root, zipOut)}  (${(statSync(zipOut).size / 1048576).toFixed(1)} MB)`)
+log(`sha256: ${sha}`)
 log(`folder: ${relative(root, portableDir)}`)
 
 // --- minimal ZIP writer (store+deflate), no external deps --------------------
