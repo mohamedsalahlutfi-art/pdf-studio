@@ -1,5 +1,5 @@
 import {
-  FileDown, FolderOpen, MessageSquareText, Moon, PanelLeft, Redo2, Save, SlidersHorizontal, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
+  FileDown, FolderOpen, MessageSquareText, Moon, PanelLeft, Redo2, Save, ScanSearch, SlidersHorizontal, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
   MoveHorizontal
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -90,8 +90,11 @@ export function Toolbar(): React.JSX.Element {
           <ToolButton label={t('zoomIn')} onClick={() => s.zoomBy(1.25)}>
             <ZoomIn size={18} />
           </ToolButton>
-          <ToolButton label={t('fitWidth')} onClick={s.setFitWidth} pressed={tab.fitWidth}>
+          <ToolButton label={t('fitWidth')} onClick={() => s.setFitMode('width')} pressed={tab.fitMode === 'width'}>
             <MoveHorizontal size={18} />
+          </ToolButton>
+          <ToolButton label={t('fitPage')} onClick={() => s.setFitMode('page')} pressed={tab.fitMode === 'page'}>
+            <ScanSearch size={18} />
           </ToolButton>
           <span className="divider" />
           <span className="page-nav">

@@ -56,7 +56,8 @@ export function MenuBar(): React.JSX.Element {
       items: () => [
         { label: t('zoomIn'), shortcut: 'Ctrl+=', disabled: !has, onClick: () => s.zoomBy(1.25) },
         { label: t('zoomOut'), shortcut: 'Ctrl+-', disabled: !has, onClick: () => s.zoomBy(1 / 1.25) },
-        { label: t('fitWidth'), shortcut: 'Ctrl+2', disabled: !has, onClick: s.setFitWidth },
+        { label: t('fitWidth'), shortcut: 'Ctrl+2', disabled: !has, onClick: () => s.setFitMode('width') },
+        { label: t('fitPage'), shortcut: 'Ctrl+1', disabled: !has, onClick: () => s.setFitMode('page') },
         { label: t('actualSize'), shortcut: 'Ctrl+0', disabled: !has, onClick: () => s.setZoom(1) },
         { divider: true },
         { label: t('thumbnails'), shortcut: 'F4', disabled: !has, onClick: s.toggleSidebar, icon: sidebarOpen ? check : undefined },

@@ -19,7 +19,7 @@ import { PasswordCancelledError } from '../lib/pdfjs'
 import * as platform from '../lib/platform'
 import { addSource, releaseSource } from '../lib/sources'
 
-export const MIN_ZOOM = 0.1
+export const MIN_ZOOM = 0.02
 export const MAX_ZOOM = 8
 
 export interface Tab {
@@ -34,7 +34,8 @@ export interface Tab {
   /** The state last written to disk; the tab is dirty when `history.present` differs. */
   savedState: DocState
   zoom: number
-  fitWidth: boolean
+  /** Auto-fit mode: fit page width, fit whole page, or a fixed zoom. */
+  fitMode: 'none' | 'width' | 'page'
   /** Zero-based index of the page at the centre of the viewport. */
   currentPage: number
   /** Set to ask the viewer to scroll; the nonce lets the same page be requested twice. */
@@ -161,7 +162,7 @@ interface AppState extends Preferences {
   redo: () => void
   setZoom: (zoom: number) => void
   zoomBy: (factor: number) => void
-  setFitWidth: () => void
+  setFitMode: (mode: 'width' | 'page') => void
   reportScale: (tabId: string, zoom: number) => void
   setCurrentPage: (tabId: string, page: number) => void
   goToPage: (page: number) => void
@@ -277,7 +278,7 @@ function createTab(title: string, pages: PageRef[], sourceIds: string[], origina
     // A file opened from disk starts clean; anything assembled in the app starts unsaved.
     savedState: originalPath ? doc : { pages: [], labels: null },
     zoom: 1,
-    fitWidth: true,
+    fitMode: 'width',
     currentPage: 0,
     scrollTarget: null,
     selection: [],
@@ -492,7 +493,7 @@ export const useApp = create<AppState>((set, get) => {
 
     setZoom(zoom) {
       const tab = activeTab()
-      if (tab) updateTab(tab.id, () => ({ zoom: clampZoom(zoom), fitWidth: false }))
+      if (tab) updateTab(tab.id, () => ({ zoom: clampZoom(zoom), fitMode: 'none' }))
     },
 
     zoomBy(factor) {
@@ -500,9 +501,9 @@ export const useApp = create<AppState>((set, get) => {
       if (tab) get().setZoom(tab.zoom * factor)
     },
 
-    setFitWidth() {
+    setFitMode(mode) {
       const tab = activeTab()
-      if (tab) updateTab(tab.id, () => ({ fitWidth: true }))
+      if (tab) updateTab(tab.id, () => ({ fitMode: mode }))
     },
 
     reportScale: (tabId, zoom) => updateTab(tabId, () => ({ zoom })),

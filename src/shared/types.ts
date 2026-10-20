@@ -18,6 +18,7 @@ export type MenuCommand =
   | 'zoom-out'
   | 'zoom-reset'
   | 'fit-width'
+  | 'fit-page'
   | 'toggle-sidebar'
   | 'toggle-theme'
   | 'toggle-invert'

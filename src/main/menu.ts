@@ -5,7 +5,7 @@ const labels = {
   en: {
     file: 'File', open: 'Open…', save: 'Save', saveAs: 'Save As…', closeTab: 'Close Tab',
     edit: 'Edit', undo: 'Undo', redo: 'Redo',
-    view: 'View', zoomIn: 'Zoom In', zoomOut: 'Zoom Out', zoomReset: 'Actual Size', fitWidth: 'Fit Width',
+    view: 'View', zoomIn: 'Zoom In', zoomOut: 'Zoom Out', zoomReset: 'Actual Size', fitWidth: 'Fit Width', fitPage: 'Fit Page',
     sidebar: 'Toggle Thumbnails', theme: 'Toggle Dark Mode', invert: 'Dark Pages',
     page: 'Pages', rotateCw: 'Rotate Clockwise', rotateCcw: 'Rotate Counterclockwise',
     deletePages: 'Delete Pages', duplicate: 'Duplicate Pages', extract: 'Extract Pages to New File',
@@ -16,7 +16,7 @@ const labels = {
   ar: {
     file: 'ملف', open: 'فتح…', save: 'حفظ', saveAs: 'حفظ باسم…', closeTab: 'إغلاق التبويب',
     edit: 'تحرير', undo: 'تراجع', redo: 'إعادة',
-    view: 'عرض', zoomIn: 'تكبير', zoomOut: 'تصغير', zoomReset: 'الحجم الفعلي', fitWidth: 'ملاءمة العرض',
+    view: 'عرض', zoomIn: 'تكبير', zoomOut: 'تصغير', zoomReset: 'الحجم الفعلي', fitWidth: 'ملاءمة العرض', fitPage: 'ملاءمة الصفحة',
     sidebar: 'إظهار/إخفاء المصغرات', theme: 'الوضع الليلي', invert: 'صفحات داكنة',
     page: 'الصفحات', rotateCw: 'تدوير مع عقارب الساعة', rotateCcw: 'تدوير عكس عقارب الساعة',
     deletePages: 'حذف الصفحات', duplicate: 'تكرار الصفحات', extract: 'استخراج الصفحات لملف جديد',
@@ -65,6 +65,7 @@ export function buildMenu(win: BrowserWindow, language: Language, isDev: boolean
         item(l.zoomOut, 'zoom-out', 'CmdOrCtrl+-'),
         item(l.zoomReset, 'zoom-reset', 'CmdOrCtrl+0'),
         item(l.fitWidth, 'fit-width', 'CmdOrCtrl+2'),
+        item(l.fitPage, 'fit-page', 'CmdOrCtrl+1'),
         { type: 'separator' },
         item(l.sidebar, 'toggle-sidebar', 'F4'),
         item(l.theme, 'toggle-theme', 'CmdOrCtrl+Shift+D'),

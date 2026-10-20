@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { computeLayout, displaySize, pageAt, pageFrame, PAGE_GAP, visibleRange } from '../lib/layout'
-import { useApp, type Tab } from '../store/useApp'
+import { MIN_ZOOM, useApp, type Tab } from '../store/useApp'
 import { AnnotationLayer } from './AnnotationLayer'
 import { pageMenuItems } from './menus'
 import { PageCanvas } from './PageCanvas'
@@ -23,14 +23,22 @@ export function Viewer({ tab }: { tab: Tab }): React.JSX.Element {
   const pages = tab.history.present.pages
   const baseSizes = useMemo(() => pages.map(displaySize), [pages, layoutVersion])
   const maxWidth = useMemo(() => Math.max(1, ...baseSizes.map((s) => s.width)), [baseSizes])
-  const scale = tab.fitWidth && viewport.width ? Math.max(0.1, (viewport.width - SIDE_PADDING) / maxWidth) : tab.zoom
+  // Fit width uses the widest page; fit page fits the current page's height too,
+  // so large A0/A1 drawings shrink enough to see the whole sheet.
+  const widthScale = viewport.width ? (viewport.width - SIDE_PADDING) / maxWidth : tab.zoom
+  const current = baseSizes[tab.currentPage] ?? baseSizes[0] ?? { width: 1, height: 1 }
+  const pageScale = viewport.height
+    ? Math.min(widthScale, (viewport.height - PAGE_GAP * 2) / current.height)
+    : widthScale
+  const scale =
+    tab.fitMode === 'width' ? Math.max(MIN_ZOOM, widthScale) : tab.fitMode === 'page' ? Math.max(MIN_ZOOM, pageScale) : tab.zoom
   const layout = useMemo(() => computeLayout(baseSizes, scale), [baseSizes, scale])
   const [first, last] = visibleRange(layout, viewport.top, viewport.height, 2)
 
-  // Keep the stored zoom in sync with fit-width so zoom in/out starts from what is on screen.
+  // Keep the stored zoom in sync with an auto-fit so zoom in/out starts from what is on screen.
   useEffect(() => {
-    if (tab.fitWidth && Math.abs(tab.zoom - scale) > 0.001) reportScale(tab.id, scale)
-  }, [tab.fitWidth, tab.zoom, tab.id, scale, reportScale])
+    if (tab.fitMode !== 'none' && Math.abs(tab.zoom - scale) > 0.001) reportScale(tab.id, scale)
+  }, [tab.fitMode, tab.zoom, tab.id, scale, reportScale])
 
   useLayoutEffect(() => {
     const el = scroller.current!

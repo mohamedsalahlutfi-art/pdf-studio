@@ -33,7 +33,8 @@ function runCommand(command: MenuCommand): void {
     'zoom-in': () => s.zoomBy(1.25),
     'zoom-out': () => s.zoomBy(1 / 1.25),
     'zoom-reset': () => s.setZoom(1),
-    'fit-width': s.setFitWidth,
+    'fit-width': () => s.setFitMode('width'),
+    'fit-page': () => s.setFitMode('page'),
     'toggle-sidebar': s.toggleSidebar,
     'toggle-theme': s.toggleTheme,
     'toggle-invert': s.toggleInvert,
@@ -66,6 +67,8 @@ function shortcutFor(e: KeyboardEvent): MenuCommand | null {
     o: 'open', z: 'undo', y: 'redo', '=': 'zoom-in', '+': 'zoom-in', '-': 'zoom-out', '0': 'zoom-reset',
     r: 'rotate-cw', d: 'duplicate-pages', e: 'extract-pages', i: 'insert-file', m: 'merge-all', a: 'select-all'
   }
+  if (key === '1') return 'fit-page'
+  if (key === '2') return 'fit-width'
   if (key === 's') return e.shiftKey ? 'save-as' : 'save'
   if (key === 'z' && e.shiftKey) return 'redo'
   if (key === 'r' && e.shiftKey) return 'rotate-ccw'
