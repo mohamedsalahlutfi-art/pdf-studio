@@ -1,3 +1,5 @@
+import { getAsset } from './assets'
+import type { ExportAsset } from './buildPdf'
 import type { DocState } from './model'
 import { getSource } from './sources'
 import type { PdfTask, PdfTaskResult } from '../workers/pdf.worker'
@@ -33,6 +35,7 @@ export async function exportDocument(state: DocState): Promise<Uint8Array> {
     ids.length === 1 &&
     first &&
     !state.labels &&
+    state.pages.every((p) => !p.annotations?.length) &&
     state.pages.length === first.pageCount &&
     state.pages.every((p, i) => p.sourceIndex === i && p.rotation === 0)
   ) {
@@ -45,13 +48,20 @@ export async function exportDocument(state: DocState): Promise<Uint8Array> {
     if (!source) throw new Error(`Missing source ${id}`)
     sources[id] = source.bytes.slice()
   }
+  const assets: Record<string, ExportAsset> = {}
+  for (const annotation of state.pages.flatMap((p) => p.annotations ?? [])) {
+    if (annotation.type !== 'image' || assets[annotation.assetId]) continue
+    const asset = getAsset(annotation.assetId)
+    if (asset) assets[annotation.assetId] = { bytes: asset.bytes.slice(), kind: asset.kind }
+  }
   return runPdfTask(
     {
       type: 'build',
       sources,
-      pages: state.pages.map(({ sourceId, sourceIndex, rotation }) => ({ sourceId, sourceIndex, rotation })),
-      labels: state.labels
+      pages: state.pages.map(({ sourceId, sourceIndex, rotation, annotations }) => ({ sourceId, sourceIndex, rotation, annotations })),
+      labels: state.labels,
+      assets
     },
-    Object.values(sources).map((b) => b.buffer as ArrayBuffer)
+    [...Object.values(sources), ...Object.values(assets).map((a) => a.bytes)].map((b) => b.buffer as ArrayBuffer)
   )
 }

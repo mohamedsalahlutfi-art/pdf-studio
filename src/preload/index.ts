@@ -19,6 +19,7 @@ const api = {
     ipcRenderer.invoke('file:saveToDownloads', fileName, data),
   showInFolder: (path: string): void => ipcRenderer.send('file:showInFolder', path),
   pathForFile: (file: File): string | null => webUtils.getPathForFile(file) || null,
+  userName: (): Promise<string> => ipcRenderer.invoke('app:userName'),
   setDirty: (dirty: boolean): void => ipcRenderer.send('app:setDirty', dirty),
   setLanguage: (language: Language): void => ipcRenderer.send('app:setLanguage', language),
   onMenu: (callback: (command: MenuCommand) => void) => subscribe('menu', callback),

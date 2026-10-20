@@ -1,6 +1,7 @@
 import { Combine, Copy, FileInput, FileOutput, FilePlus, ListOrdered, RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useActiveTab, useApp } from '../store/useApp'
+import { AnnotateTools } from './AnnotateTools'
 
 function Tool(props: { label: string; icon: ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean }) {
   return (
@@ -17,8 +18,30 @@ function Tool(props: { label: string; icon: ReactNode; onClick: () => void; disa
   )
 }
 
+/** Ribbon with two tool sets: page organisation, and comments/stamps/signatures. */
+export function Ribbon(): React.JSX.Element | null {
+  const tab = useActiveTab()
+  const t = useApp((s) => s.t)
+  const ribbon = useApp((s) => s.ribbon)
+  if (!tab) return null
+  const { setRibbon } = useApp.getState()
+  return (
+    <div className="ribbon" role="toolbar">
+      <div className="ribbon-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={ribbon === 'pages'} onClick={() => setRibbon('pages')}>
+          {t('pages')}
+        </button>
+        <button type="button" role="tab" aria-selected={ribbon === 'annotate'} onClick={() => setRibbon('annotate')}>
+          {t('annotate')}
+        </button>
+      </div>
+      {ribbon === 'pages' ? <PageTools /> : <AnnotateTools />}
+    </div>
+  )
+}
+
 /** Labelled page tools. They act on the selected thumbnails, or the current page when nothing is selected. */
-export function PageTools(): React.JSX.Element | null {
+function PageTools(): React.JSX.Element | null {
   const tab = useActiveTab()
   const t = useApp((s) => s.t)
   const tabCount = useApp((s) => s.tabs.length)
@@ -28,7 +51,7 @@ export function PageTools(): React.JSX.Element | null {
   const count = tab.selection.length
 
   return (
-    <div className="ribbon" role="toolbar" aria-label={t('pages')}>
+    <>
       <Tool label={t('insertFileShort')} icon={<FileInput size={18} />} onClick={() => void s.insertFromDialog()} />
       <Tool label={t('insertBlank')} icon={<FilePlus size={18} />} onClick={() => void s.insertBlank()} />
       <span className="divider" />
@@ -46,6 +69,6 @@ export function PageTools(): React.JSX.Element | null {
           {count} {t('selected')}
         </span>
       )}
-    </div>
+    </>
   )
 }

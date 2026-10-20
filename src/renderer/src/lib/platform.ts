@@ -64,6 +64,7 @@ export async function saveAs(defaultName: string, data: Uint8Array): Promise<str
   return null
 }
 
+export const userName = async (): Promise<string> => (api ? api.userName() : '')
 export const setDirty = (dirty: boolean): void => api?.setDirty(dirty)
 export const setLanguage = (language: Language): void => api?.setLanguage(language)
 export const onMenu = (callback: (command: MenuCommand) => void): (() => void) => api?.onMenu(callback) ?? (() => {})

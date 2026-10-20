@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { computeLayout, displaySize, pageAt, PAGE_GAP, visibleRange } from '../lib/layout'
+import { computeLayout, displaySize, pageAt, pageFrame, PAGE_GAP, visibleRange } from '../lib/layout'
 import { useApp, type Tab } from '../store/useApp'
+import { AnnotationLayer } from './AnnotationLayer'
 import { pageMenuItems } from './menus'
 import { PageCanvas } from './PageCanvas'
+import { TextLayer } from './TextLayer'
 
 const SIDE_PADDING = 48
 
@@ -15,6 +17,7 @@ export function Viewer({ tab }: { tab: Tab }): React.JSX.Element {
   const [viewport, setViewport] = useState({ top: 0, width: 0, height: 0 })
   const layoutVersion = useApp((s) => s.layoutVersion)
   const invertPages = useApp((s) => s.invertPages)
+  const tool = useApp((s) => s.tool)
   const { reportScale, setCurrentPage, zoomBy } = useApp.getState()
 
   const pages = tab.history.present.pages
@@ -109,12 +112,14 @@ export function Viewer({ tab }: { tab: Tab }): React.JSX.Element {
         }}
       >
         <PageCanvas page={pages[i]} width={size.width} height={size.height} priority={0} delay={120} />
+        <TextLayer page={pages[i]} scale={size.width / baseSizes[i].width} />
+        <AnnotationLayer page={pages[i]} frame={pageFrame(pages[i])} scale={size.width / baseSizes[i].width} />
       </div>
     )
   }
 
   return (
-    <div ref={scroller} className={`viewer${invertPages ? ' invert-pages' : ''}`} onScroll={onScroll} dir="ltr">
+    <div ref={scroller} className={`viewer tool-${tool}${invertPages ? ' invert-pages' : ''}`} onScroll={onScroll} dir="ltr">
       <div className="viewer-content" style={{ height: layout.total, width: contentWidth }}>
         {mounted}
       </div>

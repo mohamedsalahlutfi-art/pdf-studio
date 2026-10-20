@@ -208,6 +208,7 @@ button {
 }
 
 .thumbnails {
+  isolation: isolate;
   width: 168px;
   flex-shrink: 0;
   overflow-y: auto;
@@ -276,6 +277,8 @@ button {
 
 .viewer-content {
   position: relative;
+  /* Keep page layer z-indexes from competing with dialogs and menus. */
+  isolation: isolate;
 }
 
 .page {
@@ -342,6 +345,7 @@ button {
 
 .drop-overlay {
   position: fixed;
+  z-index: 80;
   inset: 8px;
   border: 3px dashed var(--accent);
   border-radius: 12px;
@@ -352,6 +356,7 @@ button {
 /* Modal */
 .modal-backdrop {
   position: fixed;
+  z-index: 60;
   inset: 0;
   display: grid;
   place-items: center;
@@ -402,6 +407,7 @@ button {
 /* Toasts */
 .toasts {
   position: fixed;
+  z-index: 70;
   bottom: 16px;
   inset-inline-start: 50%;
   transform: translateX(-50%);
@@ -433,14 +439,15 @@ button {
 
 /* Page tools ribbon */
 .ribbon {
+  position: relative;
+  z-index: 3;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 4px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: thin;
   flex-shrink: 0;
 }
 
@@ -676,4 +683,507 @@ button {
   color: inherit;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* Ribbon tabs */
+.ribbon-tabs {
+  display: flex;
+  gap: 2px;
+  margin-inline-end: 8px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.ribbon-tabs button {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ribbon-tabs button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.ribbon-tool[aria-pressed='true'],
+.ribbon-tool[aria-expanded='true'] {
+  background: var(--pressed);
+  color: var(--accent);
+}
+
+.tool-options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 8px;
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.tool-options select {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+
+.swatch[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Popovers */
+.popover-anchor {
+  position: relative;
+}
+
+.popover-layer {
+  position: fixed;
+  z-index: 40;
+}
+
+.popover {
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.popover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.popover-heading {
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.name-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.stamp-menu {
+  width: 470px;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+.signature-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 260px;
+}
+
+.stamp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stamp-option {
+  position: relative;
+  display: block;
+  height: 64px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.stamp-option:hover {
+  border-color: var(--accent);
+}
+
+.stamp-option {
+  overflow: hidden;
+  min-width: 0;
+}
+
+.stamp-option img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stamp-option.custom > button:first-child {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.stamp-option.wide {
+  height: 70px;
+}
+
+.stamp-option .remove {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+
+.stamp-option.upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Page layers */
+.page > .page-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.textLayer {
+  position: absolute;
+  text-align: initial;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer ::selection {
+  background: rgba(0, 90, 255, 0.28);
+  color: transparent;
+}
+
+.textLayer br::selection {
+  background: transparent;
+}
+
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+
+.textLayer[data-main-rotation='90'] {
+  transform: rotate(90deg) translateY(-100%);
+}
+
+.textLayer[data-main-rotation='180'] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+
+.textLayer[data-main-rotation='270'] {
+  transform: rotate(270deg) translateX(-100%);
+}
+
+.annotation-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.annotation-layer .ann {
+  pointer-events: visiblePainted;
+}
+
+.annotation-layer .ann rect[fill='transparent'],
+.annotation-layer .ann [stroke='transparent'] {
+  pointer-events: all;
+}
+
+.annotation-layer.capturing {
+  pointer-events: all;
+  cursor: crosshair;
+}
+
+.annotation-layer.tool-select .ann {
+  cursor: move;
+}
+
+.annotation-layer.tool-eraser .ann {
+  cursor: not-allowed;
+}
+
+.annotation-layer.tool-place {
+  cursor: copy;
+}
+
+.annotation-layer.tool-text {
+  cursor: text;
+}
+
+.viewer.tool-highlight .textLayer span,
+.viewer.tool-underline .textLayer span,
+.viewer.tool-strikeout .textLayer span {
+  cursor: text;
+}
+
+.viewer.tool-highlight .page,
+.viewer.tool-underline .page,
+.viewer.tool-strikeout .page {
+  cursor: crosshair;
+}
+
+.selection-box rect {
+  fill: none;
+  stroke: var(--accent);
+  pointer-events: none;
+}
+
+.selection-box .resize-handle {
+  fill: #fff;
+  pointer-events: all;
+  cursor: nwse-resize;
+}
+
+.invert-pages .annotation-layer,
+.invert-pages .text-editor {
+  filter: invert(0.9) hue-rotate(180deg);
+}
+
+.text-editor {
+  position: absolute;
+  z-index: 5;
+  padding: 0 3px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.92);
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans Arabic', 'Noto Sans', Arial, sans-serif;
+  line-height: 1.35;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  field-sizing: content;
+}
+
+.note-editor {
+  position: absolute;
+  z-index: 6;
+  width: 240px;
+  border-radius: 8px;
+  background: #fff8c4;
+  color: #222;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.note-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #ffd54f;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+/* Signature dialog */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  margin: 8px 0 12px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.modal .segmented button {
+  padding: 5px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+}
+
+.modal .segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ink-colors {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.signature-pad-wrap {
+  position: relative;
+}
+
+.signature-pad {
+  display: block;
+  width: 100%;
+  height: 200px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.pad-hint {
+  position: absolute;
+  bottom: 30px;
+  inset-inline: 40px;
+  border-top: 1px solid #ccc;
+  padding-top: 4px;
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.modal .pad-clear {
+  position: absolute;
+  top: 6px;
+  inset-inline-end: 6px;
+  padding: 6px;
+  border: 0;
+  color: #555;
+}
+
+.typed-signature-input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.signature-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 120px;
+  margin: 0 auto 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
 }

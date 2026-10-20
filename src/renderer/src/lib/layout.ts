@@ -1,5 +1,15 @@
+import type { Frame } from './geometry'
 import type { PageRef, Size } from './model'
 import { getSource } from './sources'
+
+/** Unrotated page size and the total display rotation (own /Rotate plus user rotation). */
+export function pageFrame(page: PageRef): Frame {
+  const source = getSource(page.sourceId)
+  const own = source?.rotations[page.sourceIndex] ?? 0
+  const shown = source?.sizes[page.sourceIndex] ?? { width: 612, height: 792 }
+  const raw: Size = own % 180 === 0 ? shown : { width: shown.height, height: shown.width }
+  return { ...raw, rotation: (own + page.rotation) % 360 }
+}
 
 export const PAGE_GAP = 16
 

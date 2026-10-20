@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { access, readFile, writeFile } from 'node:fs/promises'
 import { basename, extname, join, parse, resolve, sep } from 'node:path'
+import { userInfo } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import type { Language, OpenedFile } from '../shared/types'
 import { buildMenu } from './menu'
@@ -165,6 +166,14 @@ function registerIpc(): void {
     await writeFile(target, data)
     writablePaths.add(resolve(target))
     return target
+  })
+
+  ipcMain.handle('app:userName', () => {
+    try {
+      return userInfo().username
+    } catch {
+      return ''
+    }
   })
 
   ipcMain.on('app:setDirty', (_event, dirty: boolean) => {

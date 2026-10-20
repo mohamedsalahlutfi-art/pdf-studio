@@ -1,8 +1,14 @@
-import { blankPdf, buildPdf, imagesToPdf, type ExportPage, type ImageInput } from '../lib/buildPdf'
+import { blankPdf, buildPdf, imagesToPdf, type ExportAsset, type ExportPage, type ImageInput } from '../lib/buildPdf'
 import type { LabelRange } from '../lib/model'
 
 export type PdfTask =
-  | { type: 'build'; sources: Record<string, Uint8Array>; pages: ExportPage[]; labels: LabelRange[] | null }
+  | {
+      type: 'build'
+      sources: Record<string, Uint8Array>
+      pages: ExportPage[]
+      labels: LabelRange[] | null
+      assets: Record<string, ExportAsset>
+    }
   | { type: 'images'; images: ImageInput[] }
   | { type: 'blank'; width: number; height: number }
 
@@ -11,7 +17,7 @@ export type PdfTaskResult = { ok: true; data: Uint8Array } | { ok: false; error:
 function run(task: PdfTask): Promise<Uint8Array> {
   switch (task.type) {
     case 'build':
-      return buildPdf(task.sources, task.pages, task.labels)
+      return buildPdf(task.sources, task.pages, task.labels, task.assets)
     case 'images':
       return imagesToPdf(task.images)
     case 'blank':

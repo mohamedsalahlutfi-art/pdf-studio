@@ -6,7 +6,7 @@ import { isDirty, useActiveTab, useApp } from './store/useApp'
 import { ContextMenu } from './components/ContextMenu'
 import { Dialogs } from './components/Dialogs'
 import { PasswordDialog, Toasts, Welcome } from './components/Overlays'
-import { PageTools } from './components/PageTools'
+import { Ribbon } from './components/Ribbon'
 import { TabBar } from './components/TabBar'
 import { Thumbnails } from './components/Thumbnails'
 import { Toolbar } from './components/Toolbar'
@@ -89,6 +89,11 @@ export function App(): React.JSX.Element {
   useEffect(() => platform.setDirty(anyDirty), [anyDirty])
 
   useEffect(() => {
+    const s = useApp.getState()
+    if (!s.userName) void platform.userName().then((name) => name && s.setPreference('userName', name))
+  }, [])
+
+  useEffect(() => {
     document.title = tab ? `${isDirty(tab) ? '• ' : ''}${tab.title} — Salah PDF` : 'Salah PDF'
   }, [tab])
 
@@ -116,7 +121,9 @@ export function App(): React.JSX.Element {
       const active = s.tabs.find((t) => t.id === s.activeId)
       if (!active) return
       const mod = e.ctrlKey || e.metaKey
-      if (e.key === 'Delete') s.deletePages()
+      if (e.key === 'Delete' && s.selectedAnnotation) s.removeAnnotation(s.selectedAnnotation.pageId, s.selectedAnnotation.id)
+      else if (e.key === 'Delete') s.deletePages()
+      else if (e.key === 'Escape' && (s.tool !== 'select' || s.selectedAnnotation)) s.setTool('select')
       else if (e.key === 'Escape') useApp.setState({ tabs: s.tabs.map((t) => (t.id === active.id ? { ...t, selection: [] } : t)) })
       else if (e.key === 'Home' && mod) s.goToPage(0)
       else if (e.key === 'End' && mod) s.goToPage(active.history.present.pages.length - 1)
@@ -150,7 +157,7 @@ export function App(): React.JSX.Element {
     >
       <TabBar />
       <Toolbar />
-      <PageTools />
+      <Ribbon />
       <main className="workspace">
         {tab ? (
           <>

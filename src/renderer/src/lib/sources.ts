@@ -11,6 +11,8 @@ export interface Source {
   pageCount: number
   /** Page sizes at scale 1 with the page's own /Rotate applied. */
   sizes: Size[]
+  /** Each page's own /Rotate (0, 90, 180, 270). */
+  rotations: number[]
   /** True once `sizes` holds measured values for every page. */
   measured: boolean
 }
@@ -31,7 +33,8 @@ export async function addSource(
   onMeasured: () => void
 ): Promise<Source> {
   const pdf = await loadPdf(bytes, requestPassword)
-  const first = (await pdf.getPage(1)).getViewport({ scale: 1 })
+  const firstPage = await pdf.getPage(1)
+  const first = firstPage.getViewport({ scale: 1 })
   const source: Source = {
     id: newId('src'),
     name,
@@ -39,6 +42,7 @@ export async function addSource(
     pdf,
     pageCount: pdf.numPages,
     sizes: Array.from({ length: pdf.numPages }, () => ({ width: first.width, height: first.height })),
+    rotations: Array.from({ length: pdf.numPages }, () => firstPage.rotate),
     measured: pdf.numPages === 1
   }
   sources.set(source.id, source)
@@ -57,9 +61,11 @@ async function measurePages(source: Source, onMeasured: () => void): Promise<voi
     let changed = false
     for (const page of pages) {
       const { width, height } = page.getViewport({ scale: 1 })
-      const size = source.sizes[page.pageNumber - 1]
-      if (size.width !== width || size.height !== height) {
-        source.sizes[page.pageNumber - 1] = { width, height }
+      const index = page.pageNumber - 1
+      const size = source.sizes[index]
+      if (size.width !== width || size.height !== height || source.rotations[index] !== page.rotate) {
+        source.sizes[index] = { width, height }
+        source.rotations[index] = page.rotate
         changed = true
       }
     }

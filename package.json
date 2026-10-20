@@ -12,7 +12,7 @@
     "preview": "npm run ensure-electron && electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
-    "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs",
+    "test:e2e": "npm run ensure-electron && node tests/e2e/smoke.cjs && node tests/e2e/annotate.cjs",
     "dist": "npm run build && electron-builder"
   },
   "devDependencies": {

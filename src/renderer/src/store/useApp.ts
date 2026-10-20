@@ -5,7 +5,8 @@ import { EncryptedExportError, exportDocument, runPdfTask } from '../lib/exportD
 import { commit, createHistory, redo, undo, type History } from '../lib/history'
 import { translate, type StringKey } from '../lib/i18n'
 import { displaySize } from '../lib/layout'
-import { newId, type DocState, type LabelRange, type PageRef } from '../lib/model'
+import { loadLibrary, saveLibrary, type Library } from '../lib/library'
+import { newId, type Annotation, type DocState, type ImageAnnotation, type LabelRange, type PageRef } from '../lib/model'
 import * as ops from '../lib/pageOps'
 import { normalizeLabels } from '../lib/pageLabels'
 import { PasswordCancelledError } from '../lib/pdfjs'
@@ -63,7 +64,36 @@ export interface MenuItem {
   onClick?: () => void
 }
 
-export type Dialog = { kind: 'split' } | { kind: 'labels' } | null
+export type Dialog = { kind: 'split' } | { kind: 'labels' } | { kind: 'signature' } | null
+
+export type Tool =
+  | 'select'
+  | 'highlight'
+  | 'underline'
+  | 'strikeout'
+  | 'text'
+  | 'note'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'ink'
+  | 'eraser'
+  | 'place'
+
+/** An image waiting to be placed with a click (stamp, signature or picture). */
+export interface Placement {
+  assetId: string
+  /** Default upright size in points. */
+  width: number
+  height: number
+  kind: ImageAnnotation['kind']
+}
+
+export interface AnnotationRef {
+  pageId: string
+  id: string
+}
 
 export interface SplitRequest {
   groups: number[][]
@@ -77,6 +107,11 @@ interface Preferences {
   language: Language
   invertPages: boolean
   sidebarOpen: boolean
+  userName: string
+  toolColor: string
+  strokeWidth: number
+  fontSize: number
+  dynamicStamps: boolean
 }
 
 interface AppState extends Preferences {
@@ -89,6 +124,12 @@ interface AppState extends Preferences {
   busy: StringKey | null
   contextMenu: { x: number; y: number; items: MenuItem[] } | null
   dialog: Dialog
+  ribbon: 'pages' | 'annotate'
+  tool: Tool
+  placing: Placement | null
+  selectedAnnotation: AnnotationRef | null
+  editing: AnnotationRef | null
+  library: Library
 
   t: (key: StringKey) => string
   openFiles: (files: OpenedFile[]) => Promise<void>
@@ -123,6 +164,18 @@ interface AppState extends Preferences {
   split: (request: SplitRequest) => Promise<void>
   setLabels: (labels: LabelRange[] | null) => void
 
+  setRibbon: (ribbon: AppState['ribbon']) => void
+  setTool: (tool: Tool) => void
+  setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void
+  startPlacement: (placement: Placement) => void
+  addAnnotation: (pageId: string, annotation: Annotation, select?: boolean) => void
+  updateAnnotation: (pageId: string, annotation: Annotation) => void
+  removeAnnotation: (pageId: string, id: string) => void
+  selectAnnotation: (ref: AnnotationRef | null) => void
+  setEditing: (ref: AnnotationRef | null) => void
+  addToLibrary: (kind: keyof Library, dataUrl: string) => void
+  removeFromLibrary: (kind: keyof Library, dataUrl: string) => void
+
   save: () => Promise<void>
   saveAs: () => Promise<void>
   saveOverOriginal: () => Promise<void>
@@ -147,7 +200,12 @@ function loadPreferences(): Preferences {
     theme: window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
     language: 'ar',
     invertPages: false,
-    sidebarOpen: true
+    sidebarOpen: true,
+    userName: '',
+    toolColor: '#e53935',
+    strokeWidth: 2,
+    fontSize: 14,
+    dynamicStamps: true
   }
   try {
     return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') }
@@ -226,9 +284,16 @@ export const useApp = create<AppState>((set, get) => {
 
   const updatePreferences = (patch: Partial<Preferences>): void => {
     set(patch)
-    const { theme, language, invertPages, sidebarOpen } = get()
-    savePreferences({ theme, language, invertPages, sidebarOpen })
+    const { theme, language, invertPages, sidebarOpen, userName, toolColor, strokeWidth, fontSize, dynamicStamps } = get()
+    savePreferences({ theme, language, invertPages, sidebarOpen, userName, toolColor, strokeWidth, fontSize, dynamicStamps })
   }
+
+  /** Replaces one page's annotation list as an undoable edit. */
+  const editAnnotations = (pageId: string, update: (list: Annotation[]) => Annotation[]): void =>
+    get().editDoc((state) => ({
+      ...state,
+      pages: state.pages.map((p) => (p.id === pageId ? { ...p, annotations: update(p.annotations ?? []) } : p))
+    }))
 
   const requestPassword = (fileName: string) => (reason: 'need' | 'incorrect') =>
     new Promise<string | null>((resolve) =>
@@ -324,6 +389,12 @@ export const useApp = create<AppState>((set, get) => {
     busy: null,
     contextMenu: null,
     dialog: null,
+    ribbon: 'pages',
+    tool: 'select',
+    placing: null,
+    selectedAnnotation: null,
+    editing: null,
+    library: loadLibrary(),
 
     t: (key) => translate(get().language, key),
 
@@ -578,6 +649,47 @@ export const useApp = create<AppState>((set, get) => {
       const normalized = labels && normalizeLabels(labels, count)
       commitDoc(tab.id, { ...tab.history.present, labels: normalized?.length ? normalized : null })
       set({ dialog: null })
+    },
+
+    setRibbon: (ribbon) => set({ ribbon, ...(ribbon === 'pages' ? { tool: 'select' as Tool, placing: null } : {}) }),
+
+    setTool: (tool) =>
+      set({ tool, placing: tool === 'place' ? get().placing : null, selectedAnnotation: null, editing: null }),
+
+    setPreference: (key, value) => updatePreferences({ [key]: value }),
+
+    startPlacement: (placement) =>
+      set({ tool: 'place', placing: placement, ribbon: 'annotate', selectedAnnotation: null, editing: null }),
+
+    addAnnotation(pageId, annotation, select = false) {
+      editAnnotations(pageId, (list) => [...list, annotation])
+      if (select) set({ selectedAnnotation: { pageId, id: annotation.id } })
+    },
+
+    updateAnnotation(pageId, annotation) {
+      editAnnotations(pageId, (list) => list.map((a) => (a.id === annotation.id ? annotation : a)))
+    },
+
+    removeAnnotation(pageId, id) {
+      editAnnotations(pageId, (list) => list.filter((a) => a.id !== id))
+      const { selectedAnnotation, editing } = get()
+      if (selectedAnnotation?.id === id) set({ selectedAnnotation: null })
+      if (editing?.id === id) set({ editing: null })
+    },
+
+    selectAnnotation: (ref) => set({ selectedAnnotation: ref }),
+    setEditing: (ref) => set({ editing: ref }),
+
+    addToLibrary(kind, dataUrl) {
+      const library = { ...get().library, [kind]: [dataUrl, ...get().library[kind].filter((x) => x !== dataUrl)] }
+      set({ library })
+      if (!saveLibrary(library)) get().notify('error', get().t('libraryFull'))
+    },
+
+    removeFromLibrary(kind, dataUrl) {
+      const library = { ...get().library, [kind]: get().library[kind].filter((x) => x !== dataUrl) }
+      set({ library })
+      saveLibrary(library)
     },
 
     async save() {
