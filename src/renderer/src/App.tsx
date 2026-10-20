@@ -8,6 +8,7 @@ import { Dialogs } from './components/Dialogs'
 import { PasswordDialog, Toasts, Welcome } from './components/Overlays'
 import { MenuBar } from './components/MenuBar'
 import { ToolRail, ToolStrip } from './components/Ribbon'
+import { RightPanel } from './components/RightPanel'
 import { StatusBar } from './components/StatusBar'
 import { TabBar } from './components/TabBar'
 import { Thumbnails } from './components/Thumbnails'
@@ -174,6 +175,7 @@ export function App(): React.JSX.Element {
             <Welcome />
           )}
         </section>
+        <RightPanel />
       </main>
       <StatusBar />
       {dragging && <div className="drop-overlay" />}

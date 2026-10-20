@@ -1563,3 +1563,191 @@ body {
   font-family: ui-monospace, monospace;
   font-size: 11px;
 }
+
+/* Right panel (comments / properties) */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--border);
+}
+
+.right-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.panel-tabs button {
+  flex: 1;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.panel-tabs button[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.panel-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  background: var(--hover);
+}
+
+.right-panel-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.panel-empty {
+  padding: 24px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.comment-row:hover {
+  background: var(--hover);
+}
+
+.comment-row.active {
+  background: var(--pressed);
+}
+
+.comment-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.comment-text {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.comment-page {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.comment-del {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.comment-row:hover .comment-del {
+  opacity: 1;
+}
+
+.comment-del:hover {
+  background: var(--hover);
+  color: var(--error);
+}
+
+.properties {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px;
+}
+
+.prop-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.prop-field > span {
+  color: var(--muted);
+}
+
+.prop-field input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch.none {
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.prop-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--error);
+  cursor: pointer;
+}
+
+.prop-delete:hover {
+  background: var(--hover);
+}

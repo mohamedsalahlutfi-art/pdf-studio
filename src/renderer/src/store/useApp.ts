@@ -124,6 +124,7 @@ interface Preferences {
   invertPages: boolean
   sidebarOpen: boolean
   userName: string
+  rightPanel: 'none' | 'comments' | 'properties'
   toolColor: string
   strokeWidth: number
   fontSize: number
@@ -192,6 +193,10 @@ interface AppState extends Preferences {
   selectAnnotation: (ref: AnnotationRef | null) => void
   setEditing: (ref: AnnotationRef | null) => void
   duplicateAnnotation: (pageId: string, id: string) => void
+  /** Merge a patch into the selected annotation (colour/width/fill/fontSize from the properties panel). */
+  patchSelectedAnnotation: (patch: Record<string, unknown>) => void
+  setRightPanel: (panel: AppState['rightPanel']) => void
+  toggleRightPanel: (panel: Exclude<AppState['rightPanel'], 'none'>) => void
   /** Copies an annotation (stamp/signature/anything) onto other pages at the same position. */
   applyAnnotationToPages: (pageId: string, id: string, scope: PageScope) => void
   addToLibrary: (kind: keyof Library, dataUrl: string) => void
@@ -230,6 +235,7 @@ function loadPreferences(): Preferences {
     invertPages: false,
     sidebarOpen: true,
     userName: '',
+    rightPanel: 'none',
     toolColor: '#e53935',
     strokeWidth: 2,
     fontSize: 14,
@@ -312,8 +318,8 @@ export const useApp = create<AppState>((set, get) => {
 
   const updatePreferences = (patch: Partial<Preferences>): void => {
     set(patch)
-    const { theme, language, invertPages, sidebarOpen, userName, toolColor, strokeWidth, fontSize, dynamicStamps } = get()
-    savePreferences({ theme, language, invertPages, sidebarOpen, userName, toolColor, strokeWidth, fontSize, dynamicStamps })
+    const { theme, language, invertPages, sidebarOpen, rightPanel, userName, toolColor, strokeWidth, fontSize, dynamicStamps } = get()
+    savePreferences({ theme, language, invertPages, sidebarOpen, rightPanel, userName, toolColor, strokeWidth, fontSize, dynamicStamps })
   }
 
   /** Replaces one page's annotation list as an undoable edit. */
@@ -718,6 +724,23 @@ export const useApp = create<AppState>((set, get) => {
       editAnnotations(pageId, (list) => [...list, copy])
       set({ selectedAnnotation: { pageId, id: copy.id } })
     },
+
+    patchSelectedAnnotation(patch) {
+      const ref = get().selectedAnnotation
+      if (!ref) return
+      const page = activeTab()?.history.present.pages.find((p) => p.id === ref.pageId)
+      const annotation = page?.annotations?.find((a) => a.id === ref.id)
+      if (!annotation) return
+      // Only apply keys the annotation already has, so we never add a field it cannot use.
+      const next = { ...annotation }
+      for (const [key, value] of Object.entries(patch)) {
+        if (key in annotation) (next as Record<string, unknown>)[key] = value
+      }
+      get().updateAnnotation(ref.pageId, next as typeof annotation)
+    },
+
+    setRightPanel: (panel) => updatePreferences({ rightPanel: panel }),
+    toggleRightPanel: (panel) => updatePreferences({ rightPanel: get().rightPanel === panel ? 'none' : panel }),
 
     applyAnnotationToPages(pageId, id, scope) {
       const tab = activeTab()

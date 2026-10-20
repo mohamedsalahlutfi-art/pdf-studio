@@ -1,5 +1,5 @@
 import {
-  FileDown, FolderOpen, Moon, PanelLeft, Redo2, Save, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
+  FileDown, FolderOpen, MessageSquareText, Moon, PanelLeft, Redo2, Save, SlidersHorizontal, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
   MoveHorizontal
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -101,6 +101,13 @@ export function Toolbar(): React.JSX.Element {
       )}
 
       <div className="tool-group end">
+        <ToolButton label={t('panelComments')} onClick={() => s.toggleRightPanel('comments')} pressed={s.rightPanel === 'comments'} disabled={!tab}>
+          <MessageSquareText size={18} />
+        </ToolButton>
+        <ToolButton label={t('panelProperties')} onClick={() => s.toggleRightPanel('properties')} pressed={s.rightPanel === 'properties'} disabled={!tab}>
+          <SlidersHorizontal size={18} />
+        </ToolButton>
+        <span className="divider" />
         <ToolButton label={t('darkPages')} onClick={s.toggleInvert} pressed={s.invertPages}>
           <Contrast size={18} />
         </ToolButton>
