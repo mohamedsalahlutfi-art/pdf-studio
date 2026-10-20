@@ -1,4 +1,4 @@
-import { PDFDict, PDFDocument, PDFName } from 'pdf-lib'
+import { PDFDict, PDFDocument, PDFName } from '@cantoo/pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { blankPdf, buildPdf, imagesToPdf } from '../src/renderer/src/lib/buildPdf'
 

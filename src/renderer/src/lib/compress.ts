@@ -1,4 +1,4 @@
-import { decodePDFRawStream, PDFArray, PDFDict, PDFName, PDFNumber, PDFRawStream, type PDFRef, type PDFDocument } from 'pdf-lib'
+import { decodePDFRawStream, PDFArray, PDFDict, PDFName, PDFNumber, PDFRawStream, type PDFRef, type PDFDocument } from '@cantoo/pdf-lib'
 
 /**
  * Smart PDF compression. The key idea is hybrid, lossless-for-vector behaviour:
@@ -171,7 +171,7 @@ function stripMetadata(doc: PDFDocument): void {
 
 /** Compresses a PDF's bytes. Never rasterises vector or text content — only embedded raster images. */
 export async function compressPdf(bytes: Uint8Array, options: CompressOptions): Promise<CompressResult> {
-  const { PDFDocument } = await import('pdf-lib')
+  const { PDFDocument } = await import('@cantoo/pdf-lib')
   const doc = await PDFDocument.load(bytes, { updateMetadata: false })
   const report: CompressReport = {
     imagesTotal: 0,

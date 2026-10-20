@@ -3,7 +3,7 @@
 // split and page numbering. Run with `npm run build && npm run test:e2e`
 // (Linux without a display: `xvfb-run -a npm run test:e2e`).
 const { _electron: electron } = require('playwright')
-const { PDFDocument, StandardFonts } = require('pdf-lib')
+const { PDFDocument, StandardFonts } = require('@cantoo/pdf-lib')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -134,7 +134,7 @@ const step = (name) => console.log(`  ✓ ${name}`)
     assert.equal(saved.getPageCount(), 301)
     // The second rotation acted on the newly inserted (and selected) blank page.
     assert.deepEqual([0, 1].map((i) => saved.getPage(i).getRotation().angle), [90, 90])
-    assert.match(saved.catalog.get(require('pdf-lib').PDFName.of('PageLabels')).toString(), /\/S \/r/)
+    assert.match(saved.catalog.get(require('@cantoo/pdf-lib').PDFName.of('PageLabels')).toString(), /\/S \/r/)
     step('Ctrl+S saves to Downloads automatically and reuses the file')
 
     // Merge: drag the second tab onto the first.

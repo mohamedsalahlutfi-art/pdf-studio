@@ -3,7 +3,7 @@
 // smaller, re-opens, keeps the page count and vector text, and exports PNG and
 // a multi-page TIFF to Downloads. Run after `npm run build` (Linux: xvfb-run).
 const { _electron: electron } = require('playwright')
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib')
+const { PDFDocument, StandardFonts, rgb } = require('@cantoo/pdf-lib')
 const assert = require('node:assert/strict')
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), zlib = require('node:zlib')
 

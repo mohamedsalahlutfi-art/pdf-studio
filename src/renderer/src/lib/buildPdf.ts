@@ -1,7 +1,7 @@
 import {
-  BlendMode, degrees, LineCapStyle, PDFArray, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString, rgb,
-  type PDFDict, type PDFImage, type PDFPage
-} from 'pdf-lib'
+  BlendMode, degrees, LineCapStyle, PDFArray, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFRef, PDFString, rgb,
+  PDFDict, type PDFImage, type PDFPage
+} from '@cantoo/pdf-lib'
 import { arrowHead, inkPathData, NOTE_SIZE } from './geometry'
 import type { Annotation, LabelRange, Point } from './model'
 
@@ -49,10 +49,11 @@ export async function buildPdf(
     copied.set(id, new Map(indices.map((index, i) => [index, result[i]])))
   }
 
-  for (let i = base.getPageCount() - 1; i >= 0; i--) base.removePage(i)
-
+  // Resolve each model page to a concrete PDFPage, copying a page again whenever
+  // it is used more than once (a page object cannot appear twice in the tree).
   const images = new Map<string, PDFImage>()
   const used = new Set<string>()
+  const ordered: PDFPage[] = []
   for (const ref of pages) {
     const key = `${ref.sourceId}:${ref.sourceIndex}`
     let page: PDFPage
@@ -63,14 +64,41 @@ export async function buildPdf(
       used.add(key)
     }
     if (ref.rotation) page.setRotation(degrees((page.getRotation().angle + ref.rotation) % 360))
-    base.addPage(page)
     if (ref.annotations?.length) await drawAnnotations(base, page, ref.annotations, assets, images)
+    ordered.push(page)
   }
+
+  // Rewrite the page tree in one shot by assigning the ordered Kids and Count.
+  // This keeps the base document's metadata, outline and form intact, and avoids
+  // the empty-then-refill path that corrupts the tree's Count in this engine.
+  reorderPageTree(base, ordered)
 
   if (labels?.length) writePageLabels(base, labels)
   else if (!identity) base.catalog.delete(PDFName.of('PageLabels'))
 
   return base.save({ useObjectStreams: true })
+}
+
+/** Replaces the document's page order with exactly `pages`, fixing Kids, Count and each page's Parent. */
+function reorderPageTree(doc: PDFDocument, pages: PDFPage[]): void {
+  const treeRef = doc.catalog.get(PDFName.of('Pages'))
+  if (!(treeRef instanceof PDFRef)) throw new Error('Document has no page tree')
+  const tree = doc.context.lookup(treeRef, PDFDict)
+  const refs = pages.map((page) => {
+    // A freshly copied page may not yet be a registered indirect object.
+    const existing = findRef(doc, page)
+    return existing ?? doc.context.register(page.node)
+  })
+  tree.set(PDFName.of('Kids'), doc.context.obj(refs))
+  tree.set(PDFName.of('Count'), PDFNumber.of(refs.length))
+  for (const ref of refs) doc.context.lookup(ref, PDFDict).set(PDFName.of('Parent'), treeRef)
+}
+
+function findRef(doc: PDFDocument, page: PDFPage): PDFRef | undefined {
+  for (const [ref, object] of doc.context.enumerateIndirectObjects()) {
+    if (object === page.node) return ref
+  }
+  return undefined
 }
 
 function hexColor(hex: string) {

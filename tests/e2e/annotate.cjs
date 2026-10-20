@@ -2,7 +2,7 @@
 // kind with the mouse, saves, checks the PDF, and re-opens it to look at it.
 // Run with `npm run build && npm run test:e2e` (Linux: wrap in xvfb-run -a).
 const { _electron: electron } = require('playwright')
-const { PDFDocument, StandardFonts, PDFName, PDFArray, PDFDict } = require('pdf-lib')
+const { PDFDocument, StandardFonts, PDFName, PDFArray, PDFDict } = require('@cantoo/pdf-lib')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
