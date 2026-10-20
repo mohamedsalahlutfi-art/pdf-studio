@@ -3,7 +3,8 @@ import type { Language, OpenedFile } from '../../../shared/types'
 import type { ImageInput } from '../lib/buildPdf'
 import { compressReport, type CompressReportState } from '../lib/compressState'
 import type { CompressOptions, CompressReport } from '../lib/compress'
-import { EncryptedExportError, exportDocument, runPdfTask, runPdfTaskFull } from '../lib/exportDocument'
+import { encryptBytes, EncryptedExportError, exportDocument, runPdfTask, runPdfTaskFull } from '../lib/exportDocument'
+import type { EncryptOptions, Permissions } from '../lib/security'
 import { buildTiff, encodeImage, renderPageBitmap, type ImageFormat, type RasterOptions } from '../lib/exportImages'
 import { commit, createHistory, redo, undo, type History } from '../lib/history'
 import { translate, type StringKey } from '../lib/i18n'
@@ -17,7 +18,7 @@ import * as ops from '../lib/pageOps'
 import { normalizeLabels } from '../lib/pageLabels'
 import { PasswordCancelledError } from '../lib/pdfjs'
 import * as platform from '../lib/platform'
-import { addSource, releaseSource } from '../lib/sources'
+import { addSource, getSource, releaseSource } from '../lib/sources'
 
 export const MIN_ZOOM = 0.02
 export const MAX_ZOOM = 8
@@ -79,6 +80,7 @@ export type Dialog =
   | { kind: 'applyPages'; ref: AnnotationRef }
   | { kind: 'crop'; ref: AnnotationRef }
   | { kind: 'about' }
+  | { kind: 'protect' }
   | null
 
 export type Tool =
@@ -198,6 +200,10 @@ interface AppState extends Preferences {
   patchSelectedAnnotation: (patch: Record<string, unknown>) => void
   setRightPanel: (panel: AppState['rightPanel']) => void
   toggleRightPanel: (panel: Exclude<AppState['rightPanel'], 'none'>) => void
+  /** The restrictions the active document carried when opened, or null. */
+  openedPermissions: () => Permissions | null
+  /** Encrypts the active document with a password + permissions and saves a protected copy. */
+  saveProtected: (options: EncryptOptions) => Promise<void>
   /** Copies an annotation (stamp/signature/anything) onto other pages at the same position. */
   applyAnnotationToPages: (pageId: string, id: string, scope: PageScope) => void
   addToLibrary: (kind: keyof Library, dataUrl: string) => void
@@ -742,6 +748,32 @@ export const useApp = create<AppState>((set, get) => {
 
     setRightPanel: (panel) => updatePreferences({ rightPanel: panel }),
     toggleRightPanel: (panel) => updatePreferences({ rightPanel: get().rightPanel === panel ? 'none' : panel }),
+
+    openedPermissions() {
+      const tab = activeTab()
+      const first = tab && getSource(tab.sourceIds[0])
+      return first?.openedPermissions ?? null
+    },
+
+    async saveProtected(options) {
+      const tab = activeTab()
+      if (!tab || get().busy) return
+      const state = tab.history.present
+      await withBusy('protecting', async () => {
+        try {
+          const plain = await exportDocument(state)
+          const encrypted = await encryptBytes(plain, options)
+          // Always Save As for a protected copy: it is a new file, and the output
+          // path tracked for plain saves should not silently become encrypted.
+          const path = await platform.saveAs(tab.title, encrypted)
+          if (!path && platform.isDesktop) return
+          set({ dialog: null })
+          savedToast(path)
+        } catch (error) {
+          saveError(error)
+        }
+      })
+    },
 
     applyAnnotationToPages(pageId, id, scope) {
       const tab = activeTab()

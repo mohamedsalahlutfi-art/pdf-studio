@@ -1,5 +1,6 @@
 import { blankPdf, buildPdf, imagesToPdf, type ExportAsset, type ExportPage, type ImageInput } from '../lib/buildPdf'
 import { compressPdf, type CompressOptions, type CompressResult } from '../lib/compress'
+import { decryptPdf, encryptPdf, inspectSecurity, type EncryptOptions, type SecurityInfo } from '../lib/security'
 import type { LabelRange } from '../lib/model'
 
 export type PdfTask =
@@ -13,12 +14,15 @@ export type PdfTask =
   | { type: 'images'; images: ImageInput[] }
   | { type: 'blank'; width: number; height: number }
   | { type: 'compress'; bytes: Uint8Array; options: CompressOptions }
+  | { type: 'inspect-security'; bytes: Uint8Array }
+  | { type: 'decrypt'; bytes: Uint8Array; password: string }
+  | { type: 'encrypt'; bytes: Uint8Array; options: EncryptOptions }
 
 export type PdfTaskResult =
-  | { ok: true; data: Uint8Array; report?: CompressResult['report'] }
-  | { ok: false; error: string }
+  | { ok: true; data: Uint8Array; report?: CompressResult['report']; security?: SecurityInfo }
+  | { ok: false; error: string; kind?: 'wrong-password' }
 
-async function run(task: PdfTask): Promise<{ data: Uint8Array; report?: CompressResult['report'] }> {
+async function run(task: PdfTask): Promise<{ data: Uint8Array; report?: CompressResult['report']; security?: SecurityInfo }> {
   switch (task.type) {
     case 'build':
       return { data: await buildPdf(task.sources, task.pages, task.labels, task.assets) }
@@ -30,14 +34,23 @@ async function run(task: PdfTask): Promise<{ data: Uint8Array; report?: Compress
       const result = await compressPdf(task.bytes, task.options)
       return { data: result.data, report: result.report }
     }
+    case 'inspect-security': {
+      const security = await inspectSecurity(task.bytes)
+      return { data: new Uint8Array(0), security }
+    }
+    case 'decrypt':
+      return { data: await decryptPdf(task.bytes, task.password) }
+    case 'encrypt':
+      return { data: await encryptPdf(task.bytes, task.options) }
   }
 }
 
 self.onmessage = async (event: MessageEvent<PdfTask>) => {
   try {
-    const { data, report } = await run(event.data)
-    self.postMessage({ ok: true, data, report } satisfies PdfTaskResult, { transfer: [data.buffer] })
+    const { data, report, security } = await run(event.data)
+    self.postMessage({ ok: true, data, report, security } satisfies PdfTaskResult, { transfer: [data.buffer] })
   } catch (error) {
-    self.postMessage({ ok: false, error: error instanceof Error ? error.message : String(error) } satisfies PdfTaskResult)
+    const wrong = error instanceof Error && error.name === 'WrongPasswordError'
+    self.postMessage({ ok: false, error: error instanceof Error ? error.message : String(error), kind: wrong ? 'wrong-password' : undefined } satisfies PdfTaskResult)
   }
 }

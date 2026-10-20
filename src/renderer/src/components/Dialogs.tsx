@@ -9,6 +9,7 @@ import { drawTypedSignature, removeWhiteBackground, trimCanvas } from '../lib/re
 import { useActiveTab, useApp, type Tab } from '../store/useApp'
 import { ExportDialog } from './ExportDialog'
 import { ImageDialogs } from './ImageDialogs'
+import { ProtectDialog } from './ProtectDialog'
 
 function Modal(props: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   return (
@@ -377,6 +378,7 @@ export function Dialogs(): React.JSX.Element | null {
   if (dialog.kind === 'signature') return <SignatureDialog />
   if (dialog.kind === 'applyPages' || dialog.kind === 'crop') return <ImageDialogs />
   if (dialog.kind === 'about') return <AboutDialog />
+  if (dialog.kind === 'protect') return <ProtectDialog />
   if (!tab) return null
   if (dialog.kind === 'export') return <ExportDialog key={tab.id} />
   if (dialog.kind === 'split') return <SplitDialog key={tab.id} tab={tab} />

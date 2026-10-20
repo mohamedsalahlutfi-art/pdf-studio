@@ -2,6 +2,8 @@ import { getAsset } from './assets'
 import type { ExportAsset } from './buildPdf'
 import type { DocState } from './model'
 import { getSource } from './sources'
+import type { EncryptOptions, SecurityInfo } from './security'
+import { WrongPasswordError } from './security'
 import type { PdfTask, PdfTaskResult } from '../workers/pdf.worker'
 
 export class EncryptedExportError extends Error {}
@@ -29,6 +31,38 @@ export async function runPdfTaskFull(
   } finally {
     worker.terminate()
   }
+}
+
+/** Runs one security task in the worker, surfacing the security info and wrong-password outcome. */
+async function runSecurityTask(task: PdfTask, transfer: ArrayBuffer[] = []): Promise<{ data: Uint8Array; security?: SecurityInfo }> {
+  const worker = new Worker(new URL('../workers/pdf.worker.ts', import.meta.url), { type: 'module' })
+  try {
+    const result = await new Promise<PdfTaskResult>((resolve, reject) => {
+      worker.onmessage = (event: MessageEvent<PdfTaskResult>) => resolve(event.data)
+      worker.onerror = (event) => reject(new Error(event.message))
+      worker.postMessage(task, transfer)
+    })
+    if (!result.ok) throw result.kind === 'wrong-password' ? new WrongPasswordError() : new Error(result.error)
+    return { data: result.data, security: result.security }
+  } finally {
+    worker.terminate()
+  }
+}
+
+export async function inspectSecurity(bytes: Uint8Array): Promise<SecurityInfo> {
+  const copy = bytes.slice()
+  const { security } = await runSecurityTask({ type: 'inspect-security', bytes: copy }, [copy.buffer as ArrayBuffer])
+  return security!
+}
+
+export async function decryptBytes(bytes: Uint8Array, password: string): Promise<Uint8Array> {
+  const copy = bytes.slice()
+  return (await runSecurityTask({ type: 'decrypt', bytes: copy, password }, [copy.buffer as ArrayBuffer])).data
+}
+
+export async function encryptBytes(bytes: Uint8Array, options: EncryptOptions): Promise<Uint8Array> {
+  const copy = bytes.slice()
+  return (await runSecurityTask({ type: 'encrypt', bytes: copy, options }, [copy.buffer as ArrayBuffer])).data
 }
 
 /**

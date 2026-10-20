@@ -30,6 +30,7 @@ export function MenuBar(): React.JSX.Element {
         { label: t('exportAndCompress'), shortcut: 'Ctrl+Shift+E', disabled: !has, onClick: () => s.openDialog({ kind: 'export' }) },
         { label: t('mergeAll'), shortcut: 'Ctrl+M', disabled: s.tabs.length < 2, onClick: s.mergeAll },
         { label: t('split'), disabled: total < 2, onClick: () => s.openDialog({ kind: 'split' }) },
+        { label: t('protectMenu'), disabled: !has, onClick: () => s.openDialog({ kind: 'protect' }) },
         { divider: true },
         { label: t('closeTab'), shortcut: 'Ctrl+W', disabled: !has, onClick: () => s.activeId && s.closeTab(s.activeId) }
       ]
