@@ -1751,3 +1751,39 @@ body {
 .prop-delete:hover {
   background: var(--hover);
 }
+
+/* Export card polish */
+.export-modal h2 {
+  margin-bottom: 4px;
+}
+
+.export-panel .preset {
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.export-panel .preset:hover {
+  border-color: var(--accent);
+}
+
+.export-panel select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.vectors-note {
+  margin: -4px 0 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--pressed);
+  color: var(--accent);
+  line-height: 1.4;
+}
+
+.size-preview {
+  box-shadow: inset 0 0 0 1px var(--border);
+}

@@ -62,7 +62,7 @@ function CompressPanel() {
           <span className="slider-end">{t('smaller')}</span>
           <input
             type="range"
-            min={20}
+            min={10}
             max={100}
             value={Math.round(options.imageQuality * 100)}
             onChange={(e) => patch({ imageQuality: Number(e.target.value) / 100 })}
@@ -73,26 +73,21 @@ function CompressPanel() {
 
       <label className="field">
         <span>{t('imageResolution')}</span>
-        <select
-          value={options.maxImagePixels}
-          onChange={(e) => patch({ maxImagePixels: Number(e.target.value) })}
-        >
+        <select value={options.maxImagePixels} onChange={(e) => patch({ maxImagePixels: Number(e.target.value) })}>
           <option value={0}>{t('keepOriginalRes')}</option>
-          <option value={1200}>1200 px</option>
-          <option value={1600}>1600 px</option>
-          <option value={2000}>2000 px</option>
-          <option value={2600}>2600 px</option>
+          {[2600, 2000, 1600, 1200, 1000, 800, 600, 480, 360].map((px) => (
+            <option key={px} value={px}>
+              {px} px{px <= 600 ? ` — ${t('smallest')}` : ''}
+            </option>
+          ))}
         </select>
       </label>
 
       <label className="check">
-        <input type="checkbox" checked={options.maxImagePixels === 0} onChange={(e) => patch({ maxImagePixels: e.target.checked ? 0 : 1600 })} />
-        {t('keepVectorCrisp')}
-      </label>
-      <label className="check">
         <input type="checkbox" checked={options.stripMetadata} onChange={(e) => patch({ stripMetadata: e.target.checked })} />
         {t('stripMetadata')}
       </label>
+      <p className="muted small vectors-note">{t('vectorsAlwaysCrisp')}</p>
 
       <div className="size-preview">
         <div>
