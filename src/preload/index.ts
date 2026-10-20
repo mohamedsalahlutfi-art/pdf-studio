@@ -17,6 +17,8 @@ const api = {
     ipcRenderer.invoke('dialog:saveAs', defaultName, data),
   saveToDownloads: (fileName: string, data: Uint8Array): Promise<string> =>
     ipcRenderer.invoke('file:saveToDownloads', fileName, data),
+  saveBytesToDownloads: (fileName: string, data: Uint8Array): Promise<string> =>
+    ipcRenderer.invoke('file:saveBytesToDownloads', fileName, data),
   showInFolder: (path: string): void => ipcRenderer.send('file:showInFolder', path),
   pathForFile: (file: File): string | null => webUtils.getPathForFile(file) || null,
   userName: (): Promise<string> => ipcRenderer.invoke('app:userName'),

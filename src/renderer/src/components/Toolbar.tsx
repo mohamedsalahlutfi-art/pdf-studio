@@ -1,5 +1,5 @@
 import {
-  FolderOpen, Moon, PanelLeft, Redo2, Save, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
+  FileDown, FolderOpen, Moon, PanelLeft, Redo2, Save, Sun, Undo2, ZoomIn, ZoomOut, Contrast, Languages,
   MoveHorizontal
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -64,6 +64,9 @@ export function Toolbar(): React.JSX.Element {
         </ToolButton>
         <ToolButton label={`${t('save')} (Ctrl+S)`} onClick={() => void s.save()} disabled={!tab || s.busy !== null}>
           <Save size={18} />
+        </ToolButton>
+        <ToolButton label={t('exportAndCompress')} onClick={() => s.openDialog({ kind: 'export' })} disabled={!tab}>
+          <FileDown size={18} />
         </ToolButton>
         <span className="divider" />
         <ToolButton label={`${t('undo')} (Ctrl+Z)`} onClick={s.undo} disabled={!tab?.history.past.length}>

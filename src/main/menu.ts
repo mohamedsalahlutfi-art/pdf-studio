@@ -11,7 +11,7 @@ const labels = {
     deletePages: 'Delete Pages', duplicate: 'Duplicate Pages', extract: 'Extract Pages to New File',
     insertFile: 'Insert from File…', insertBlank: 'Insert Blank Page', split: 'Split Document…',
     mergeAll: 'Merge All Open Files', labels: 'Page Numbering…', selectAll: 'Select All Pages',
-    saveHint: 'Save (to Downloads)'
+    saveHint: 'Save (to Downloads)', exportCompress: 'Export & Compress…'
   },
   ar: {
     file: 'ملف', open: 'فتح…', save: 'حفظ', saveAs: 'حفظ باسم…', closeTab: 'إغلاق التبويب',
@@ -22,7 +22,7 @@ const labels = {
     deletePages: 'حذف الصفحات', duplicate: 'تكرار الصفحات', extract: 'استخراج الصفحات لملف جديد',
     insertFile: 'إدراج من ملف…', insertBlank: 'إدراج صفحة فارغة', split: 'تقسيم المستند…',
     mergeAll: 'دمج كل الملفات المفتوحة', labels: 'ترقيم الصفحات…', selectAll: 'تحديد كل الصفحات',
-    saveHint: 'حفظ (في التنزيلات)'
+    saveHint: 'حفظ (في التنزيلات)', exportCompress: 'التصدير والضغط…'
   }
 } satisfies Record<Language, Record<string, string>>
 
@@ -42,6 +42,7 @@ export function buildMenu(win: BrowserWindow, language: Language, isDev: boolean
         item(l.open, 'open', 'CmdOrCtrl+O'),
         item(l.saveHint, 'save', 'CmdOrCtrl+S'),
         item(l.saveAs, 'save-as', 'CmdOrCtrl+Shift+S'),
+        item(l.exportCompress, 'export-compress', 'CmdOrCtrl+Shift+E'),
         { type: 'separator' },
         item(l.closeTab, 'close-tab', 'CmdOrCtrl+W'),
         ...(process.platform === 'darwin' ? [] : [{ type: 'separator' as const }, { role: 'quit' as const }])

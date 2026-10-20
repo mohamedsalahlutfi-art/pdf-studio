@@ -32,3 +32,4 @@ export type MenuCommand =
   | 'merge-all'
   | 'page-labels'
   | 'select-all'
+  | 'export-compress'

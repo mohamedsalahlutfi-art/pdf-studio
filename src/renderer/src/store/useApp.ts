@@ -1,9 +1,14 @@
 import { create } from 'zustand'
 import type { Language, OpenedFile } from '../../../shared/types'
 import type { ImageInput } from '../lib/buildPdf'
-import { EncryptedExportError, exportDocument, runPdfTask } from '../lib/exportDocument'
+import { compressReport, type CompressReportState } from '../lib/compressState'
+import type { CompressOptions, CompressReport } from '../lib/compress'
+import { EncryptedExportError, exportDocument, runPdfTask, runPdfTaskFull } from '../lib/exportDocument'
+import { buildTiff, encodeImage, renderPageBitmap, type ImageFormat, type RasterOptions } from '../lib/exportImages'
 import { commit, createHistory, redo, undo, type History } from '../lib/history'
 import { translate, type StringKey } from '../lib/i18n'
+
+export type StringKeyLike = StringKey
 import { displaySize } from '../lib/layout'
 import { loadLibrary, saveLibrary, type Library } from '../lib/library'
 import { newId, type Annotation, type DocState, type ImageAnnotation, type LabelRange, type PageRef } from '../lib/model'
@@ -64,7 +69,12 @@ export interface MenuItem {
   onClick?: () => void
 }
 
-export type Dialog = { kind: 'split' } | { kind: 'labels' } | { kind: 'signature' } | null
+export type Dialog =
+  | { kind: 'split' }
+  | { kind: 'labels' }
+  | { kind: 'signature' }
+  | { kind: 'export' }
+  | null
 
 export type Tool =
   | 'select'
@@ -130,6 +140,8 @@ interface AppState extends Preferences {
   selectedAnnotation: AnnotationRef | null
   editing: AnnotationRef | null
   library: Library
+  /** Last compression report, shown after a compress-and-save. */
+  lastCompression: CompressReportState | null
 
   t: (key: StringKey) => string
   openFiles: (files: OpenedFile[]) => Promise<void>
@@ -175,6 +187,13 @@ interface AppState extends Preferences {
   setEditing: (ref: AnnotationRef | null) => void
   addToLibrary: (kind: keyof Library, dataUrl: string) => void
   removeFromLibrary: (kind: keyof Library, dataUrl: string) => void
+
+  /** Estimates the compressed size of the active document without saving. */
+  estimateCompression: (options: CompressOptions) => Promise<CompressReport | null>
+  /** Compresses the active document and saves the smaller result (never the original in place by default). */
+  compressAndSave: (options: CompressOptions, as: boolean) => Promise<void>
+  /** Exports pages as image files (one per page) or a single multi-page TIFF. */
+  exportImages: (format: ImageFormat, options: RasterOptions, scope: 'all' | 'current' | 'selection') => Promise<void>
 
   save: () => Promise<void>
   saveAs: () => Promise<void>
@@ -395,6 +414,7 @@ export const useApp = create<AppState>((set, get) => {
     selectedAnnotation: null,
     editing: null,
     library: loadLibrary(),
+    lastCompression: null,
 
     t: (key) => translate(get().language, key),
 
@@ -690,6 +710,85 @@ export const useApp = create<AppState>((set, get) => {
       const library = { ...get().library, [kind]: get().library[kind].filter((x) => x !== dataUrl) }
       set({ library })
       saveLibrary(library)
+    },
+
+    async estimateCompression(options) {
+      const tab = activeTab()
+      if (!tab) return null
+      const bytes = await exportDocument(tab.history.present)
+      const { report } = await runPdfTaskFull({ type: 'compress', bytes: bytes.slice(), options }, [bytes.buffer as ArrayBuffer])
+      return report ?? null
+    },
+
+    async compressAndSave(options, as) {
+      const tab = activeTab()
+      if (!tab || get().busy) return
+      const state = tab.history.present
+      await withBusy('compressing', async () => {
+        try {
+          const source = await exportDocument(state)
+          const { data, report } = await runPdfTaskFull(
+            { type: 'compress', bytes: source.slice(), options },
+            [source.buffer as ArrayBuffer]
+          )
+          let path: string | null
+          if (as || (!tab.outputPath && !platform.isDesktop)) path = await platform.saveAs(tab.title, data)
+          else if (tab.outputPath) {
+            await platform.save(tab.outputPath, data)
+            path = tab.outputPath
+          } else path = await platform.saveToDownloads(tab.title, data)
+          if (!path && platform.isDesktop && as) return
+          updateTab(tab.id, () => ({ savedState: state, outputPath: path ?? tab.outputPath, title: path ? fileNameOf(path) : tab.title }))
+          set({ lastCompression: report ? compressReport(report, path) : null, dialog: null })
+          savedToast(path)
+        } catch (error) {
+          saveError(error)
+        }
+      })
+    },
+
+    async exportImages(format, options, scope) {
+      const tab = activeTab()
+      if (!tab || get().busy) return
+      const all = tab.history.present.pages
+      const pages =
+        scope === 'current'
+          ? [all[tab.currentPage]]
+          : scope === 'selection' && tab.selection.length
+            ? all.filter((p) => tab.selection.includes(p.id))
+            : all
+      if (!pages.length) return
+      await withBusy('exporting', async () => {
+        try {
+          const rendered = []
+          for (const page of pages) {
+            const bitmap = await renderPageBitmap(page, options.dpi)
+            if (bitmap) rendered.push(bitmap)
+          }
+          if (!rendered.length) return
+          const base = fileNameOf(tab.title).replace(/\.[^.]+$/, '')
+          let last: string | null = null
+          if (format === 'tiff') {
+            last = await platform.saveBytesToDownloads(`${base}.tiff`, buildTiff(rendered), 'image/tiff')
+          } else {
+            // One file per page; the page's own number keeps names stable across selections.
+            const pad = (n: number): string => String(n).padStart(String(all.length).length, '0')
+            for (const page of rendered) {
+              const bytes = await encodeImage(page, format, options.quality)
+              const name = rendered.length === 1 ? `${base}.${format}` : `${base}-${pad(page.index)}.${format}`
+              last = await platform.saveBytesToDownloads(name, bytes, `image/${format}`)
+            }
+          }
+          set({ dialog: null })
+          get().notify(
+            'info',
+            `${get().t('exportedCount')} ${rendered.length}`,
+            last ? { label: get().t('showInFolder'), run: () => platform.showInFolder(last!) } : undefined
+          )
+        } catch (error) {
+          get().notify('error', `${get().t('exportFailed')}: ${message(error)}`)
+        }
+      })
     },
 
     async save() {

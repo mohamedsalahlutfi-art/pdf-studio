@@ -44,6 +44,7 @@ function runCommand(command: MenuCommand): void {
     split: () => hasTab && s.openDialog({ kind: 'split' }),
     'merge-all': s.mergeAll,
     'page-labels': () => hasTab && s.openDialog({ kind: 'labels' }),
+    'export-compress': () => hasTab && s.openDialog({ kind: 'export' }),
     'select-all': () => {
       const el = document.activeElement
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.select()

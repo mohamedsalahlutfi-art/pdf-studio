@@ -7,6 +7,7 @@ import { chunk, parseRanges, splitBefore } from '../lib/pageOps'
 import * as platform from '../lib/platform'
 import { drawTypedSignature, removeWhiteBackground, trimCanvas } from '../lib/render'
 import { useActiveTab, useApp, type Tab } from '../store/useApp'
+import { ExportDialog } from './ExportDialog'
 
 function Modal(props: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   return (
@@ -349,6 +350,7 @@ export function Dialogs(): React.JSX.Element | null {
   if (!dialog) return null
   if (dialog.kind === 'signature') return <SignatureDialog />
   if (!tab) return null
+  if (dialog.kind === 'export') return <ExportDialog key={tab.id} />
   if (dialog.kind === 'split') return <SplitDialog key={tab.id} tab={tab} />
   return <LabelsDialog key={tab.id} tab={tab} />
 }

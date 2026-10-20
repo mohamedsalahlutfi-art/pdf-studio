@@ -8,6 +8,14 @@ export class EncryptedExportError extends Error {}
 
 /** Runs a pdf-lib task in a short-lived worker so the UI never blocks. */
 export async function runPdfTask(task: PdfTask, transfer: ArrayBuffer[] = []): Promise<Uint8Array> {
+  return (await runPdfTaskFull(task, transfer)).data
+}
+
+/** Like runPdfTask but also returns a task report (e.g. compression stats). */
+export async function runPdfTaskFull(
+  task: PdfTask,
+  transfer: ArrayBuffer[] = []
+): Promise<{ data: Uint8Array; report?: Extract<PdfTaskResult, { ok: true }>['report'] }> {
   const worker = new Worker(new URL('../workers/pdf.worker.ts', import.meta.url), { type: 'module' })
   try {
     const result = await new Promise<PdfTaskResult>((resolve, reject) => {
@@ -17,7 +25,7 @@ export async function runPdfTask(task: PdfTask, transfer: ArrayBuffer[] = []): P
     })
     // pdf-lib cannot rewrite encrypted files; encryption support lands with the security tools.
     if (!result.ok) throw /encrypted/i.test(result.error) ? new EncryptedExportError() : new Error(result.error)
-    return result.data
+    return { data: result.data, report: result.report }
   } finally {
     worker.terminate()
   }

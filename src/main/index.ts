@@ -145,6 +145,17 @@ function registerIpc(): void {
     return target
   })
 
+  // Writes any binary (image export) to Downloads, keeping the caller-chosen extension.
+  ipcMain.handle('file:saveBytesToDownloads', async (_event, fileName: string, data: Uint8Array) => {
+    const folder = app.getPath('downloads')
+    const { name, ext } = parse(basename(fileName))
+    let candidate = join(folder, `${name}${ext}`)
+    for (let n = 2; await exists(candidate); n++) candidate = join(folder, `${name} (${n})${ext}`)
+    await writeFile(candidate, data)
+    writablePaths.add(resolve(candidate))
+    return candidate
+  })
+
   ipcMain.on('file:showInFolder', (_event, path: string) => {
     if (writablePaths.has(resolve(path))) shell.showItemInFolder(path)
   })

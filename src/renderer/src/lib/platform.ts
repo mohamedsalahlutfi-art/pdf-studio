@@ -46,6 +46,18 @@ export async function saveToDownloads(fileName: string, data: Uint8Array): Promi
   return null
 }
 
+/** Writes an exported binary (image/TIFF) to Downloads, or triggers a browser download. */
+export async function saveBytesToDownloads(fileName: string, data: Uint8Array, mime: string): Promise<string | null> {
+  if (api) return api.saveBytesToDownloads(fileName, data)
+  const url = URL.createObjectURL(new Blob([data as BlobPart], { type: mime }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  return null
+}
+
 export const showInFolder = (path: string): void => api?.showInFolder(path)
 
 export async function save(path: string, data: Uint8Array): Promise<void> {
