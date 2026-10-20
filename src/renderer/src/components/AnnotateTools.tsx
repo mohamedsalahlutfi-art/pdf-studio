@@ -11,14 +11,15 @@ import { useApp, type Placement, type Tool } from '../store/useApp'
 const COLORS = ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#212121']
 const HIGHLIGHT_COLORS = ['#ffeb3b', '#a5d6a7', '#81d4fa', '#f8bbd0', '#ffcc80']
 
-function ToolToggle(props: { tool: Tool; label: string; icon: ReactNode; shortcut?: string }) {
+function ToolToggle(props: { tool: Tool; label: string; icon: ReactNode; shortcut?: string; tip?: string }) {
   const active = useApp((s) => s.tool === props.tool)
+  const title = [props.tip ?? props.label, props.shortcut ? `(${props.shortcut})` : ''].filter(Boolean).join(' ')
   return (
     <button
       type="button"
       className="ribbon-tool"
       aria-pressed={active}
-      title={props.shortcut ? `${props.label} (${props.shortcut})` : props.label}
+      title={title}
       onClick={() => {
         const s = useApp.getState()
         const next = active ? 'select' : props.tool
@@ -169,7 +170,7 @@ function SignatureMenu({ onClose }: { onClose: () => void }) {
 }
 
 /** A ribbon button with a dropdown that is kept fully inside the window. */
-function PopoverButton(props: { label: string; icon: ReactNode; children: (close: () => void) => ReactNode }) {
+function PopoverButton(props: { label: string; icon: ReactNode; tip?: string; children: (close: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -201,7 +202,7 @@ function PopoverButton(props: { label: string; icon: ReactNode; children: (close
   }, [open])
   return (
     <div className="popover-anchor" ref={ref}>
-      <button type="button" className="ribbon-tool" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="ribbon-tool" aria-expanded={open} title={props.tip ?? props.label} onClick={() => setOpen(!open)}>
         {props.icon}
         <span>{props.label}</span>
       </button>
@@ -235,28 +236,28 @@ export function AnnotateTools(): React.JSX.Element {
 
   return (
     <>
-      <ToolToggle tool="select" label={t('toolSelect')} icon={<MousePointer2 size={18} />} shortcut="Esc" />
+      <ToolToggle tool="select" label={t('toolSelect')} icon={<MousePointer2 size={18} />} shortcut="Esc" tip={t('tipSelect')} />
       <span className="divider" />
-      <ToolToggle tool="highlight" label={t('toolHighlight')} icon={<Highlighter size={18} />} />
-      <ToolToggle tool="underline" label={t('toolUnderline')} icon={<Underline size={18} />} />
-      <ToolToggle tool="strikeout" label={t('toolStrikeout')} icon={<Strikethrough size={18} />} />
+      <ToolToggle tool="highlight" label={t('toolHighlight')} icon={<Highlighter size={18} />} tip={t('tipHighlight')} />
+      <ToolToggle tool="underline" label={t('toolUnderline')} icon={<Underline size={18} />} tip={t('tipUnderline')} />
+      <ToolToggle tool="strikeout" label={t('toolStrikeout')} icon={<Strikethrough size={18} />} tip={t('tipStrikeout')} />
       <span className="divider" />
-      <ToolToggle tool="text" label={t('toolText')} icon={<Type size={18} />} />
-      <ToolToggle tool="note" label={t('toolNote')} icon={<StickyNote size={18} />} />
-      <ToolToggle tool="ink" label={t('toolPen')} icon={<PenLine size={18} />} />
-      <ToolToggle tool="rect" label={t('toolRect')} icon={<Square size={18} />} />
-      <ToolToggle tool="ellipse" label={t('toolEllipse')} icon={<Circle size={18} />} />
-      <ToolToggle tool="arrow" label={t('toolArrow')} icon={<ArrowUpRight size={18} />} />
-      <ToolToggle tool="line" label={t('toolLine')} icon={<Minus size={18} />} />
-      <ToolToggle tool="eraser" label={t('toolEraser')} icon={<Eraser size={18} />} />
+      <ToolToggle tool="text" label={t('toolText')} icon={<Type size={18} />} tip={t('tipText')} />
+      <ToolToggle tool="note" label={t('toolNote')} icon={<StickyNote size={18} />} tip={t('tipNote')} />
+      <ToolToggle tool="ink" label={t('toolPen')} icon={<PenLine size={18} />} tip={t('tipPen')} />
+      <ToolToggle tool="rect" label={t('toolRect')} icon={<Square size={18} />} tip={t('tipRect')} />
+      <ToolToggle tool="ellipse" label={t('toolEllipse')} icon={<Circle size={18} />} tip={t('tipEllipse')} />
+      <ToolToggle tool="arrow" label={t('toolArrow')} icon={<ArrowUpRight size={18} />} tip={t('tipArrow')} />
+      <ToolToggle tool="line" label={t('toolLine')} icon={<Minus size={18} />} tip={t('tipLine')} />
+      <ToolToggle tool="eraser" label={t('toolEraser')} icon={<Eraser size={18} />} tip={t('tipEraser')} />
       <span className="divider" />
-      <PopoverButton label={t('stamps')} icon={<Stamp size={18} />}>
+      <PopoverButton label={t('stamps')} icon={<Stamp size={18} />} tip={t('tipStamps')}>
         {(close) => <StampMenu onClose={close} />}
       </PopoverButton>
-      <PopoverButton label={t('signature')} icon={<Signature size={18} />}>
+      <PopoverButton label={t('signature')} icon={<Signature size={18} />} tip={t('tipSignature')}>
         {(close) => <SignatureMenu onClose={close} />}
       </PopoverButton>
-      <button type="button" className="ribbon-tool" onClick={() => void insertImage()}>
+      <button type="button" className="ribbon-tool" title={t('tipImage')} onClick={() => void insertImage()}>
         <ImagePlus size={18} />
         <span>{t('insertImage')}</span>
       </button>
