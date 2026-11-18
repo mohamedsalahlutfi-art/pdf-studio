@@ -1,0 +1,48 @@
+name: mocall-private
+services:
+  app:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      PORT: "8787"
+      PUBLIC_ORIGIN: "https://${DOMAIN}"
+      TURN_HOST: "${DOMAIN}"
+      TURN_SECRET: "${TURN_SECRET}"
+    restart: unless-stopped
+  caddy:
+    image: caddy:2-alpine
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: "${DOMAIN}"
+    volumes:
+      - ./server/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+  turn:
+    image: coturn/coturn:latest
+    command:
+      - "-n"
+      - "--fingerprint"
+      - "--use-auth-secret"
+      - "--static-auth-secret=${TURN_SECRET}"
+      - "--realm=${DOMAIN}"
+      - "--no-cli"
+      - "--no-loopback-peers"
+      - "--no-multicast-peers"
+      - "--min-port=49160"
+      - "--max-port=49200"
+      - "--external-ip=${PUBLIC_IP}"
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:

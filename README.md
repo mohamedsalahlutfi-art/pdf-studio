@@ -1,34 +1,48 @@
-# MoCall Personal 0.1.0
-برنامج شخصي للمكالمات والاجتماعات، عربي أولاً. APK للأندرويد وواجهة ويب ثابتة.
+# MoCall Private v0.2.0
 
-## Functionality
-- Create cryptographically random Jitsi Meet room link.
-- Share invite through Android share sheet, including WhatsApp.
-- Guest joins through HTTPS browser link without installing *MoCall*.
-- Join an existing Jitsi room.
-- Store local recent links only in browser/app storage.
-- No paid APIs or GitHub Actions credits required for public-repo workflows (subject to GitHub policy).
+Arabic-first **self-hosted one-to-one audio/video calling** with Android APK and browser guests.
 
-## Important limitations
-- This is a **meeting-link client**, not an independently hosted calling stack. Audio/video media is provided by Jitsi Meet, not GitHub.
-- On meet.jit.si the **first participant must sign in** (Google / GitHub etc.) to create the room; guests normally join anonymously once moderator is present.
-- Android app **opens the meeting in the device browser**, for compatibility with meeting permissions and OAuth; calls are not embedded in this initial APK.
-- Jitsi's own mobile browser landing page may suggest downloading Jitsi, but provides a **Continue on the web** option.
-- Calls require internet; no true incoming phone-style background ringing or contact directory in this version.
-- Public meeting links should be treated as invitations: send only to intended people. Confidential calls should use appropriate host settings.
-- This is a prototype for personal use, not tested or licensed as a UAE commercial VoIP service.
-- Release APK is signed with GitHub's temporary **debug** certificate; updates/install signing for a production app require a persistent private signing key.
+## Implemented
+- Own Node.js + WebSocket signaling. No Jitsi, Google Meet, or redirects.
+- WebRTC media encryption in transit via DTLS-SRTP; optional self-hosted coturn relay.
+- ECDSA P-256 device/browser public/private key pair generated locally. The 22-character ID is derived from the public key, not a MAC address. Private keys remain in IndexedDB; the signaling server challenges signatures.
+- Contacts stored locally, not in a central contacts database.
+- Voice/video incoming call, accept/reject, microphone mute, video toggle and hangup while both devices are connected.
+- Share an HTTPS URL with a public call ID; guests join through a browser without installing MoCall.
+- Native Android WebView with microphone/camera permissions restricted to the configured HTTPS server.
+- No audio/video recording code, server call-content logging, or telemetry.
 
-## Android
-Run via GitHub Actions on branch mocall-personal; it generates app-debug.apk signed for testing and publishes it automatically to GitHub Release:
-https://github.com/mohamedsalahlutfi-art/pdf-studio/releases/tag/mocall-v0.1.0
+## Reality checks
+A public HTTPS/WSS server must run continuously. GitHub Releases can store the APK and GitHub can host source, but GitHub Pages cannot host live WebSockets or TURN. The APK initially opens a server URL setup screen until you deploy. **This APK does not independently provide live calls without a server.**
 
-Build locally (JDK 17, Android SDK 35, Gradle 8.10.2):
-gradle :app:assembleDebug
+To reach cellular/Wi-Fi users behind NAT, configure public-IP TURN (Docker Compose service included). Carrier networks can still block or disrupt calls. This product does not disguise VoIP or contain blocking-evasion features. In the UAE, VoIP is regulated; verify licensing/TDRA requirements. No 100% privacy guarantee: the server and ISP see metadata, peers may see IP addresses and may record on their own phones, and a malicious or compromised signaling server can mount an active attack unless fingerprints are independently verified (not included in this prototype).
 
-## Web
-Open web/index.html in a browser; for production publish web/ on any HTTPS static host.
-The guest's invite link points directly to https://meet.jit.si, so no web hosting is required for guests.
+**Background incoming calls are NOT implemented.** Both participants must have the app/browser open and remain connected. Native call-screen notifications and private push are future work.
 
-## Source separation
-This app is stored on the isolated "mocall-personal" branch of an existing user repository. The default branch and original PDF Studio project were not modified. Prefer migrating to a dedicated repository later.
+## Deploy on your own server
+1. Obtain a domain and public IPv4 server, point DNS A record to the server. Allow TCP 80/443/3478 and UDP 3478 plus 49160-49200.
+2. Copy .env.example to .env and replace DOMAIN, PUBLIC_IP, and TURN_SECRET (unique random 64-character hex). Keep .env out of Git.
+3. Install Docker Compose on the server. Run: docker compose up -d --build
+4. Caddy provisions HTTPS for your domain, Node serves the web app and WSS signaling, coturn provides relay traversal.
+5. Check https://YOUR_DOMAIN/healthz. Open Android APK and enter https://YOUR_DOMAIN.
+6. Share the displayed link with someone who opens it in their browser. Both sides must stay connected.
+
+**Local test:** cd server && npm install && npm test && npm start ; open http://localhost:8787 in two separate browser profiles on the same computer. For two devices on the public Internet you need real HTTPS and reachable TURN.
+
+## Android APK
+GitHub Actions runs signaling tests, builds an Android debug-signed APK, and uploads it to a direct GitHub Release:
+https://github.com/mohamedsalahlutfi-art/pdf-studio/releases/tag/mocall-v0.2.0
+
+This is a test APK, not a production-signed release or audited private communications product. Android browser data deletion erases the identity, and contacts need manual re-pairing. A permanent Android signing key is needed for stable future production updates.
+
+## Files
+- server/server.js: authentication and WebSocket signaling
+- server/public/: Arabic-first UI, identity and browser WebRTC
+- server/test/: signaling smoke tests
+- server/Dockerfile, server/Caddyfile, docker-compose.yml: deployment
+- .env.example: example only — must set secret on server
+- app/: native Android shell with trusted WebRTC permissions
+- .github/workflows/build-apk.yml: test, build, publish
+
+## Future
+Independent verification of peer identity, encryption-independent contact backup, background call notifications via a privacy-conscious approach, group conferencing, stronger abuse protections and security audits.

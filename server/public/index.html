@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080f22">
+<meta name="description" content="MoCall - مكالماتك الخاصة مع رابط ضيف ومفتاح هوية خاص بجهازك">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<title>MoCall Private — مكالماتي</title>
+</head>
+<body>
+<div class="layout">
+<header class="topbar">
+<div class="brand"><span class="brand-mark">m</span><div><strong>MoCall</strong><small>PRIVATE CALLS</small></div></div>
+<div class="connection"><span id="online-led" class="led"></span><span id="network-state">جاري الاتصال بالخادم...</span></div>
+</header>
+<main>
+<section class="hero">
+<div class="eyebrow">◈ التواصل تحت سيطرتك</div>
+<h1>قريبين، حتى لو <em>بيننا بلاد.</em></h1>
+<p>مكالمات صوت وفيديو مشفرة من جهاز لجهاز، وإضافة جهات الاتصال بهوية خاصة بدون رقم هاتف أو MAC Address. لا Jitsi ولا تحويل لتطبيق آخر.</p>
+</section>
+<section class="grid">
+<article class="panel identity">
+<div class="panel-top"><span class="panel-icon">⌘</span><span class="label-tag">هويتك الخاصة</span></div>
+<h2>رابطك الشخصي</h2>
+<p>ابعت الرابط لأي حد، وهو يدخل من المتصفح مباشرة ويطلب مكالمة معاك.</p>
+<div class="idbox"><span id="my-id">جارٍ إنشاء الهوية...</span><small>مُعرّف تشفيري للجهاز</small></div>
+<div class="btnrow">
+<button class="btn primary" id="share-identity" disabled>↗ مشاركة رابط الاتصال</button>
+<button class="btn subtle" id="copy-identity" disabled>⧉ نسخ</button>
+</div>
+<div class="note">المفتاح الخاص بهويتك محفوظ محليًا على هذا المتصفح أو التطبيق. حذف بيانات التطبيق يغيّر الهوية.</div>
+</article>
+<article class="panel dial">
+<div class="panel-top"><span class="panel-icon violet">◉</span><span class="label-tag">اتصال مباشر</span></div>
+<h2>اتصل بشخص</h2>
+<p>اكتب مُعرّف الشخص أو افتح الرابط اللي بعتهولك.</p>
+<label for="target-id">هوية المستلم أو رابط الدعوة</label>
+<input id="target-id" dir="ltr" autocomplete="off" placeholder="الصق المعرّف أو الرابط">
+<div class="btnrow">
+<button class="btn primary" id="dial-video" disabled>▣ فيديو</button>
+<button class="btn subtle" id="dial-audio" disabled>♫ صوت</button>
+</div>
+<div id="target-presence" class="hint">للاتصال لازم الطرف الثاني يكون فاتح MoCall ومتصل.</div>
+</article>
+</section>
+<section class="contacts-heading"><h2>جهات اتصالك</h2><span>محفوظة عندك، مش على سيرفر المكالمات</span></section>
+<article class="panel contactpanel">
+<div class="addcontact">
+<input id="contact-name" placeholder="اسم الشخص" maxlength="50" autocomplete="off">
+<input id="contact-id" dir="ltr" placeholder="معرّفه أو رابط الدعوة" autocomplete="off">
+<button class="btn subtle" id="save-contact">+ حفظ</button>
+</div>
+<div id="contacts-list" class="contacts-list"><p class="empty">لسه مفيش جهات اتصال.</p></div>
+</article>
+<section class="info">
+<div class="info-symbol">◈</div>
+<div><strong>الخصوصية تبدأ من التصميم.</strong><p>الصوت والفيديو بيستخدموا تشفير WebRTC أثناء النقل؛ خادمك بيحوّل إشارات بدء المكالمة فقط. المكالمات مش بتتسجل افتراضيًا، لكن الطرف الآخر يقدر يسجل من جهازه. الاتصالات عبر الإنترنت تحتاج خادمك الخاص وإعداد TURN لاتصال الشبكات المختلفة.</p></div>
+</section>
+</main>
+<footer>MoCall Private 0.2.0 · تشغيل ذاتي · لا يعتمد على Jitsi</footer>
+</div>
+<div class="overlay" id="incoming-overlay" hidden>
+<div class="dialog">
+<div class="ring-pulse">☎</div>
+<span class="incoming-label">مكالمة واردة</span>
+<h2 id="incoming-name">مستخدم MoCall</h2>
+<p id="incoming-info">بيحاول يتصل بيك</p>
+<div class="call-actions"><button class="btn decline" id="reject-call">✕ رفض</button><button class="btn accept" id="accept-call">✓ رد</button></div>
+</div>
+</div>
+<div class="overlay" id="call-overlay" hidden>
+<div class="callbox">
+<div class="callbar"><div><strong id="call-partner">مكالمة MoCall</strong><small id="call-status">جارٍ الاتصال...</small></div><span class="secure-pill">🔒 WebRTC مشفّر</span></div>
+<div class="video-stage"><video id="remote-video" autoplay playsinline></video><video id="local-video" autoplay muted playsinline></video><div class="video-placeholder" id="video-placeholder">◉<span>جارٍ تهيئة الاتصال...</span></div></div>
+<div class="call-controls"><button class="round" id="toggle-mic" title="كتم الصوت">🎙</button><button class="round" id="toggle-camera" title="إيقاف الكاميرا">▣</button><button class="round hangup" id="end-call" title="إنهاء المكالمة">☎</button></div>
+</div>
+</div>
+<div id="snackbar" class="snackbar" hidden role="status"></div>
+<script src="/app.js" defer></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-name: Build and Publish MoCall APK
+name: Build and Publish MoCall Private APK
 on:
   push:
     branches:
@@ -25,21 +25,28 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Build APK (debug-signed)
+      - name: Node 22 for signaling tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install signaling server dependencies
+        run: npm install --prefix server --no-audit --no-fund
+      - name: Test private signaling and authentication
+        run: npm test --prefix server
+      - name: Build Android APK (debug-signed test version)
         run: gradle :app:assembleDebug --no-daemon --stacktrace
-      - name: Name downloadable file
-        run: cp app/build/outputs/apk/debug/app-debug.apk MoCall-v0.1.0.apk
-      - name: Upload build artifact
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk MoCall-Private-v0.2.0.apk
+      - name: Upload APK build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MoCall-APK
-          path: MoCall-v0.1.0.apk
-      - name: Publish direct APK download in Releases
+          name: MoCall-Private-APK
+          path: MoCall-Private-v0.2.0.apk
+      - name: Publish direct APK in GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: mocall-v0.1.0
-          name: MoCall Personal v0.1.0
+          tag_name: mocall-v0.2.0
           target_commitish: mocall-personal
-          files: MoCall-v0.1.0.apk
-          generate_release_notes: false
-          body: 'Arabic-first personal meeting link app. APK is debug-signed for testing. Calls use Jitsi Meet; host login may be required.'
+          name: MoCall Private v0.2.0
+          files: MoCall-Private-v0.2.0.apk
+          body: "Self-hosted calling MVP: APK + browser guests, own signaling and optional TURN. Requires own HTTPS/WSS server. Debug-signed for personal testing only."

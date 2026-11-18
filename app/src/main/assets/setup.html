@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080f22">
+<title>MoCall Private — إعداد الخادم</title>
+<style>
+:root{font-family:system-ui,Tahoma,sans-serif;color:#edf7ff;background:#080f22}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;background:radial-gradient(circle at 80% 0%,#264968,transparent 50%),#080f22;display:grid;place-items:center;padding:23px}
+main{width:100%;max-width:460px}.logo{background:linear-gradient(135deg,#55e2ca,#8398f8);color:#0c1c33;width:68px;height:68px;display:grid;place-items:center;border-radius:22px;font-size:44px;font-weight:900;margin-bottom:30px}
+h1{font-size:31px;line-height:1.2;margin:0 0 13px}h1 span{color:#82c2f4}p{font-size:14px;color:#adc0d9;line-height:1.9}article{margin-top:28px;padding:22px;background:#182741;border:1px solid #36516e;border-radius:20px}label{font-size:13px;font-weight:700;display:block;margin-bottom:10px}
+input{width:100%;padding:16px;border:1px solid #42617a;border-radius:13px;background:#0b192e;color:white;font-size:15px;direction:ltr;text-align:left}
+button{margin-top:15px;width:100%;padding:15px;background:linear-gradient(115deg,#5be0ca,#84b0ee);color:#0b2537;border:none;border-radius:13px;font-size:15px;font-weight:800}
+.note{margin-top:17px;font-size:12px;color:#8da4c1;line-height:1.8}.warning{padding:12px;background:#2c2232;border:1px solid #67435c;border-radius:11px;font-size:12px;color:#e7b9c9;line-height:1.8;margin-top:22px}
+</style></head><body>
+<main>
+<div class="logo">m</div>
+<h1>مكالماتك. <span>على خادمك.</span></h1>
+<p>MoCall دلوقتي مش بيفتح Jitsi أو أي شركة اجتماعات. ده تطبيق خاص لنسخة الويب اللي بتشتغل على خادمك، وتقدر تبعت منها رابط للضيف.</p>
+<article>
+<label for="server">عنوان خادم MoCall الخاص (HTTPS)</label>
+<input id="server" placeholder="https://calls.example.com" autocomplete="url" inputmode="url">
+<button id="connect">الدخول إلى MoCall الخاص</button>
+<div class="note">تدخل العنوان مرة واحدة فقط. هيتم حفظه على جهازك، وتقدر تغيّره من زر الرجوع في التطبيق.</div>
+</article>
+<div class="warning">المكالمات لن تعمل قبل استضافة خادم الإشارات الموجود في السورس وتفعيل HTTPS وTURN. GitHub وحده لا يستطيع استقبال مكالمات حية.</div>
+</main>
+<script>
+document.getElementById('connect').onclick=function(){
+ const s=document.getElementById('server').value.trim().replace(/\/$/,'');
+ try{
+  const u=new URL(s);
+  if(u.protocol!=='https:'||u.username||u.password||u.pathname!=='/'||u.search||u.hash||!u.hostname)throw Error();
+  window.location.href='mocall://configure?url='+encodeURIComponent(u.origin);
+ }catch(e){alert('اكتب رابط HTTPS صحيح، مثل https://calls.example.com');}
+};
+</script></body></html>

@@ -1,0 +1,12 @@
+{
+  "name": "mocall-private-server",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Self-hosted secure signaling for private WebRTC calls",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {"node": ">=20"},
+  "dependencies": {"ws": "^8.18.0"}
+}
