@@ -1,63 +1,34 @@
-# Salah PDF
+# MoCall Personal 0.1.0
+برنامج شخصي للمكالمات والاجتماعات، عربي أولاً. APK للأندرويد وواجهة ويب ثابتة.
 
-برنامج سطح مكتب لعرض ملفات PDF وتعديلها، مبني بـ Electron و React.
-الهدف: أداء أسرع من Adobe Acrobat على الملفات الكبيرة، مع واجهة عربية وإنجليزية.
+## Functionality
+- Create cryptographically random Jitsi Meet room link.
+- Share invite through Android share sheet, including WhatsApp.
+- Guest joins through HTTPS browser link without installing *MoCall*.
+- Join an existing Jitsi room.
+- Store local recent links only in browser/app storage.
+- No paid APIs or GitHub Actions credits required for public-repo workflows (subject to GitHub policy).
 
-A fast desktop PDF editor built with Electron and React, with Arabic and English UI.
+## Important limitations
+- This is a **meeting-link client**, not an independently hosted calling stack. Audio/video media is provided by Jitsi Meet, not GitHub.
+- On meet.jit.si the **first participant must sign in** (Google / GitHub etc.) to create the room; guests normally join anonymously once moderator is present.
+- Android app **opens the meeting in the device browser**, for compatibility with meeting permissions and OAuth; calls are not embedded in this initial APK.
+- Jitsi's own mobile browser landing page may suggest downloading Jitsi, but provides a **Continue on the web** option.
+- Calls require internet; no true incoming phone-style background ringing or contact directory in this version.
+- Public meeting links should be treated as invitations: send only to intended people. Confidential calls should use appropriate host settings.
+- This is a prototype for personal use, not tested or licensed as a UAE commercial VoIP service.
+- Release APK is signed with GitHub's temporary **debug** certificate; updates/install signing for a production app require a persistent private signing key.
 
-## التشغيل / Getting started
+## Android
+Run via GitHub Actions on branch mocall-personal; it generates app-debug.apk signed for testing and publishes it automatically to GitHub Release:
+https://github.com/mohamedsalahlutfi-art/pdf-studio/releases/tag/mocall-v0.1.0
 
-```bash
-npm install
-npm run dev        # تشغيل للتطوير
-npm run build      # بناء الملفات
-npm run dist       # إنشاء ملف التثبيت (Windows / macOS / Linux)
-```
+Build locally (JDK 17, Android SDK 35, Gradle 8.10.2):
+gradle :app:assembleDebug
 
-## الحفظ / Saving
+## Web
+Open web/index.html in a browser; for production publish web/ on any HTTPS static host.
+The guest's invite link points directly to https://meet.jit.si, so no web hosting is required for guests.
 
-- **Ctrl+S:** أول مرة بيحفظ نسخة جديدة في مجلد التنزيلات من غير ما يسألك على اسم. لو الاسم موجود قبل كده بيضيف رقم، زي `file (2).pdf`. المرات اللي بعدها بيحفظ على نفس النسخة دي.
-- **Ctrl+Shift+S:** حفظ باسم، وتختار المكان بنفسك.
-- **حفظ فوق الملف الأصلي:** من قائمة الكليك يمين على التبويب، وبيسألك الأول.
-- البرنامج مابيعدّلش الملف الأصلي أبداً غير لو طلبت ده صراحةً.
-
-## الاختبارات / Tests
-
-```bash
-npm run typecheck
-npm test                 # اختبارات الوحدات (vitest)
-npm run build && npm run test:e2e   # تشغيل البرنامج فعلياً على ملف 300 صفحة
-```
-
-على Linux بدون شاشة: `xvfb-run -a npm run test:e2e`.
-
-## البنية / Architecture
-
-| الجزء | المكان | الدور |
-| --- | --- | --- |
-| Main process | `src/main` | النوافذ، القوائم، فتح وحفظ الملفات |
-| Preload | `src/preload` | واجهة آمنة محدودة بين الواجهة والنظام |
-| Renderer | `src/renderer` | الواجهة (React) |
-| Export worker | `src/renderer/src/workers` | بناء ملف PDF عند الحفظ في خلفية منفصلة |
-
-- **نموذج المستند:** كل مستند هو قائمة صفحات، وكل صفحة تشير إلى صفحة في ملف مصدر. أي تعديل ينتج نسخة جديدة من القائمة، وده اللي بيخلي التراجع والإعادة بلا حدود.
-- **العرض:** pdf.js يحلل الملف في Web Worker. الواجهة بترسم الصفحات القريبة من الشاشة فقط، فملف من 1000 صفحة بيفتح بنفس سرعة ملف من 10.
-- **الحفظ:** المستند اللي ماتعدّلش بيتحفظ بنفس البايتات الأصلية، فالتوقيعات الرقمية بتفضل سليمة. غير كده بيتبني الملف بـ pdf-lib في Worker، والواجهة ماتهنّجش.
-- **الأمان:** `contextIsolation` و `sandbox` مفعّلين، ومافيش Node في الواجهة. والبرنامج مايكتبش إلا على ملفات المستخدم فتحها أو اختارها.
-
-## خطة المراحل / Roadmap
-
-- [x] **المرحلة 1 — الأساس والعرض:** تبويبات، عرض سريع للملفات الضخمة، مصغرات، تكبير وتصغير، تنقل بين الصفحات، تدوير، تراجع وإعادة بلا حدود، وضع ليلي وصفحات داكنة، عربي وإنجليزي، ملفات بكلمة سر (فتح)، سحب وإفلات، حفظ وحفظ باسم.
-- [x] **المرحلة 2 — إدارة الصفحات:** قائمة كليك يمين على الصفحات والتبويبات، تحديد متعدد (Ctrl/Shift)، إعادة ترتيب بالسحب، دمج بسحب تبويب على تبويب أو على المصغرات، دمج كل الملفات، إدراج ملفات PDF أو صور في أي مكان، صفحة فارغة، تكرار، حذف، استخراج، تقسيم (كل N صفحات، نطاقات، عند الصفحات المحددة)، ترقيم الصفحات (روماني وعربي وحروف)، فتح الصور كـ PDF، و Ctrl+S يحفظ تلقائياً في التنزيلات.
-- [x] **المرحلة 3 — التعليقات:** تظليل وتسطير وشطب على النص، أو على الصفحات الممسوحة ضوئياً بسحب مربع. مربعات نص بالعربي والإنجليزي، وملاحظات لاصقة بتتحفظ كتعليقات PDF حقيقية. مربع ودائرة وسهم وخط وقلم حر، وممحاة. تحريك وتغيير حجم وحذف أي عنصر، وكله فيه تراجع.
-- [x] **المرحلة 4 — الأختام والتوقيعات:** 10 أختام جاهزة بالعربي والإنجليزي، وختم ديناميكي بالتاريخ والوقت والاسم، ورفع أختام أو لوجو كصورة، والخلفية البيضاء بتتشال باحترافية: البرنامج بيفرّق بين حبر الختم الملوّن والورق، فبيشيل الأبيض والرمادي الباهت بس، ويحافظ على اللون الأحمر والأزرق حتى عند الحواف، وينضّف الهالة البيضا حوالين الحبر. توقيع بالرسم أو الكتابة أو صورة، والتواقيع بتتحفظ للاستخدام السريع.
-- [ ] **التوقيع الرقمي بشهادة (PKCS#7):** لسه.
-- [ ] **المرحلة 5 — النماذج والأمان والتحويل:** ملء النماذج، التشفير وتقييد الأذونات، الطمس النهائي، العلامة المائية، تحويل الصور، الضغط، القص وتغيير المقاسات.
-
-## ملاحظات / Notes
-
-- التعليقات والأختام والتوقيعات بتندمج في محتوى الصفحة وقت الحفظ (flatten)، فبتظهر بنفس الشكل في أي برنامج. الملاحظات اللاصقة بس بتتحفظ كتعليقات PDF قابلة للفتح.
-- مربعات النص بتتحفظ كصورة علشان الحروف العربية تظهر متصلة صح في كل البرامج، بس ده معناه إن النص ده مش هيتنسخ ومش هيظهر في البحث.
-
-- حفظ تعديلات على ملف مشفر غير مدعوم لحد المرحلة 5 (الملف بيتفتح ويتقري عادي).
-- لما بنجمع صفحات من أكتر من ملف، المحتوى المرئي بيتنقل كامل، بس الفهرس (bookmarks) والنماذج بيتاخدوا من الملف الأول بس.
+## Source separation
+This app is stored on the isolated "mocall-personal" branch of an existing user repository. The default branch and original PDF Studio project were not modified. Prefer migrating to a dedicated repository later.

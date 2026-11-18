@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0c1224">
+  <meta name="description" content="MoCall - إنشاء رابط اجتماع صوت أو فيديو ومشاركته بسهولة">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>MoCall | مكالماتي</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;color:#eff4ff;background:#0c1224;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100dvh;background:radial-gradient(circle at 80% 5%,#1b3962 0,transparent 36%),radial-gradient(circle at 0% 70%,#182346 0,transparent 42%),#0c1224}
+    .wrap{max-width:770px;margin:auto;padding:24px 18px 100px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
+    .logo{display:flex;align-items:center;gap:12px;font-weight:850;letter-spacing:.2px;font-size:22px}
+    .mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#50e2d1,#6476ff);display:grid;place-items:center;box-shadow:0 10px 28px #17bfc44a;color:#09192b;font-size:22px;font-weight:900}
+    .pill{font-size:12px;padding:8px 12px;border:1px solid #294260;background:#16243e;border-radius:99px;color:#b8cbeb}
+    .eyebrow{color:#72e3d4;font-size:13px;font-weight:750;margin:0 0 12px}
+    h1{font-size:clamp(31px,6vw,47px);line-height:1.21;letter-spacing:-1.3px;margin:0}
+    .gradient{background:linear-gradient(90deg,#5ce1d0,#afbbff);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .intro{max-width:550px;color:#9baccc;line-height:1.85;margin:15px 0 25px;font-size:15px}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    .card{background:linear-gradient(160deg,#1a2744e8,#121c33f2);border:1px solid #293b5a;border-radius:24px;padding:24px;box-shadow:0 14px 46px #03071933}
+    .card.primary{border-color:#427977}
+    h2{font-size:19px;margin:0 0 8px;letter-spacing:-.3px}
+    .muted{color:#91a4c4;line-height:1.8;font-size:13px;margin:0 0 20px}
+    label{display:block;font-size:13px;color:#ccd7eb;font-weight:650;margin-bottom:9px}
+    input{width:100%;padding:15px 14px;border:1px solid #374762;background:#0e192e;color:#f5f9ff;border-radius:13px;font-size:15px;outline:none;direction:rtl}
+    input:focus{border-color:#58cfc5;box-shadow:0 0 0 3px #3bcab41a}
+    input::placeholder{color:#7485a3}
+    .field{margin:0 0 16px}
+    .btn{border:0;font-family:inherit;font-size:14px;cursor:pointer;font-weight:800;padding:15px 18px;border-radius:13px;display:inline-flex;justify-content:center;align-items:center;gap:8px;transition:transform .15s,filter .15s}
+    .btn:active{transform:scale(.98)}
+    .accent{background:linear-gradient(105deg,#57e0d0,#6fa8f7);color:#09233b;box-shadow:0 6px 26px #39acba33}
+    .secondary{color:#edf5ff;background:#273752;border:1px solid #3d5170}
+    .ghost{color:#bed0e6;background:transparent;border:1px solid #364760}
+    .btnblock{width:100%}
+    .meet-illustration{height:100px;display:flex;align-items:center;justify-content:center;gap:12px;margin:4px 0 18px}
+    .bubble{display:grid;place-items:center;height:67px;width:67px;border-radius:22px;background:#2d506c;border:1px solid #457c97;font-size:32px;box-shadow:0 8px 30px #03081244}
+    .bubble:nth-child(2){background:linear-gradient(140deg,#4bc6bb,#6481e7);transform:translateY(-12px);color:#112238}
+    .bubble:nth-child(3){background:#35436a}
+    .subhead{margin:26px 0 12px;display:flex;justify-content:space-between;align-items:center}
+    .subhead h2{font-size:16px;margin:0}
+    .tiny{font-size:11px;color:#879bbd}
+    .meeting{margin-top:18px;padding:16px;background:#101d32;border:1px solid #427570;border-radius:18px}
+    .meeting[hidden],.toast[hidden],.empty[hidden]{display:none}
+    .meeting .ready{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#79e5c8;margin-bottom:12px}
+    .dot{width:9px;height:9px;background:#5fe5ad;border-radius:50%;box-shadow:0 0 14px #4cf4a9}
+    .linkbox{direction:ltr;text-align:left;word-break:break-all;padding:12px;border:1px solid #344e69;background:#08162a;border-radius:12px;color:#c4dcf6;font-size:12px}
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0 0}
+    .buttons .btn{padding:12px;font-size:12px}
+    .meeting .note{color:#a8b9d3;font-size:11px;line-height:1.7;margin:12px 0 0}
+    .history{display:grid;gap:9px}
+    .historyitem{background:#16223c;border:1px solid #2b3b57;border-radius:14px;padding:14px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .historyitem strong{font-size:13px;display:block;word-break:break-word}
+    .historyitem small{font-size:11px;color:#8d9fbd;display:block;margin-top:5px}
+    .historyitem button{flex-shrink:0}
+    .help{display:flex;gap:14px;align-items:flex-start;background:#152239;border:1px solid #263853;padding:18px;border-radius:18px;margin-top:25px;color:#a5b8d3;font-size:12px;line-height:1.9}
+    .help b{display:block;color:#e9f3ff;font-size:13px}
+    .help-icon{background:#253c54;color:#62dacc;padding:6px 11px;border-radius:11px;font-size:20px}
+    .footer{margin-top:22px;font-size:11px;color:#6e86a9;text-align:center}
+    .toast{position:fixed;bottom:25px;left:16px;right:16px;margin:auto;max-width:370px;background:#68ddcc;color:#0d2636;text-align:center;padding:14px;border-radius:13px;font-size:13px;font-weight:800;box-shadow:0 10px 32px #0008;z-index:4}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}
+    .meta span{font-size:11px;color:#9ab2d1;border:1px solid #304667;padding:6px 9px;border-radius:8px;background:#1a2b47}
+    @media(max-width:620px){.wrap{padding:20px 14px 80px}.grid{grid-template-columns:1fr}.card{padding:21px}.top{margin-bottom:23px}h1{font-size:34px}.intro{font-size:14px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+ <header class="top"><div class="logo"><span class="mark">M</span><span>MoCall</span></div><span class="pill">مكالمات واجتماعات</span></header>
+ <main>
+  <p class="eyebrow">اتواصل من أي مكان</p>
+  <h1>مكالمتك تبدأ <span class="gradient">برابط واحد.</span></h1>
+  <p class="intro">اعمل اجتماع صوت أو فيديو، وابعت الرابط لأي شخص. ضيفك يقدر يدخل من المتصفح على الموبايل أو الكمبيوتر بدون ما يثبت تطبيقك.</p>
+  <div class="meta"><span>✓ صوت وفيديو</span><span>✓ اجتماعات جماعية</span><span>✓ دعوة برابط</span><span>✓ بدون اشتراك في MoCall</span></div>
+  <section class="grid">
+   <div class="card primary">
+    <h2>ابدأ اجتماع جديد</h2>
+    <p class="muted">هننشئ اسمًا عشوائيًا يصعب تخمينه. شارك الرابط مع الشخص اللي عايز تكلمه.</p>
+    <div class="field"><label for="meetingName">اسم الاجتماع (اختياري)</label><input id="meetingName" maxlength="65" placeholder="مثال: مكالمة شخصية"></div>
+    <button class="btn accent btnblock" id="createBtn">✦ إنشاء رابط مكالمة</button>
+    <div class="meeting" id="meetingPanel" hidden>
+      <div class="ready"><span class="dot"></span> رابطك جاهز</div>
+      <div class="linkbox" id="meetingLink" aria-live="polite"></div>
+      <div class="buttons"><button class="btn secondary" id="copyBtn">⧉ نسخ الرابط</button><button class="btn secondary" id="shareBtn">↗ إرسال دعوة</button></div>
+      <button class="btn accent btnblock" id="joinBtn" style="margin-top:10px">◉ دخول الاجتماع الآن</button>
+      <p class="note">ستفتح المكالمة عبر Jitsi Meet. صاحب الاجتماع قد يُطلب منه تسجيل الدخول بحساب Google أو GitHub مجانًا. الضيوف لا يحتاجون حسابًا عادةً بعد بدء الاجتماع.</p>
+    </div>
+   </div>
+   <div class="card">
+    <div class="meet-illustration"><span class="bubble">◉</span><span class="bubble">▣</span><span class="bubble">♫</span></div>
+    <h2>عندك رابط؟</h2>
+    <p class="muted">ادخل برابط مكالمة MoCall / Jitsi أو اسم الغرفة.</p>
+    <div class="field"><label for="joinInput">الرابط أو رقم الغرفة</label><input id="joinInput" dir="ltr" placeholder="meet.jit.si/..." autocomplete="off"></div>
+    <button class="btn secondary btnblock" id="joinOtherBtn">↗ الانضمام لاجتماع</button>
+   </div>
+  </section>
+  <section class="subhead"><h2>مكالماتك الأخيرة</h2><span class="tiny">محفوظة على جهازك فقط</span></section>
+  <div class="history" id="history"></div>
+  <div class="help"><span class="help-icon">ⓘ</span><div><b>مهم قبل أول مكالمة</b>المكالمات تتم عن طريق Jitsi Meet وليست على سيرفر GitHub. أول شخص يدخل الغرفة قد يحتاج تسجيل الدخول ليصبح المضيف، ومن الطبيعي أن يطلب المتصفح الإذن للكاميرا والميكروفون. اتصال الإنترنت مطلوب.</div></div>
+  <div class="footer">MoCall Personal • نسخة تجريبية 0.1.0 • Powered by Jitsi Meet</div>
+ </main>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+<script>
+(function(){
+  "use strict";
+  var KEY="mocall_personal_rooms_v1", current=null, toastTimer=null;
+  function byId(id){return document.getElementById(id);}
+  function toast(msg){var el=byId("toast");el.textContent=msg;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.hidden=true;},2800);}
+  function rooms(){try{var value=JSON.parse(localStorage.getItem(KEY)||"[]");return Array.isArray(value)?value:[];}catch(e){return [];}}
+  function save(r){try{var list=rooms().filter(function(x){return x.url!==r.url;});list.unshift(r);localStorage.setItem(KEY,JSON.stringify(list.slice(0,15)));}catch(e){}renderHistory();}
+  function makeId(){var a=new Uint8Array(16);if(window.crypto&&crypto.getRandomValues){crypto.getRandomValues(a);}else{for(var i=0;i<a.length;i++){a[i]=Math.floor(Math.random()*256);}}return Array.from(a).map(function(n){return n.toString(16).padStart(2,"0");}).join("");}
+  function validUrl(u){return typeof u==="string"&&/^https:\/\/meet\.jit\.si\/[A-Za-z0-9_-]{4,100}$/.test(u);}
+  function roomUrl(raw){var x=String(raw||"").trim();if(!x)return null;try{if(x.indexOf("://")>=0){var u=new URL(x);if(u.protocol!=="https:"||u.hostname!=="meet.jit.si")return null;x=u.pathname.slice(1).split("/")[0];}}catch(e){return null;}x=x.replace(/^meet\.jit\.si\//i,"").replace(/^\//,"").split(/[?#]/)[0];return /^[A-Za-z0-9_-]{4,100}$/.test(x)?"https://meet.jit.si/"+x:null;}
+  function openMeeting(url){if(!validUrl(url)){toast("رابط غير صالح");return;}if(window.Native&&Native.openMeeting){Native.openMeeting(url);}else{window.location.assign(url);}}
+  function copyLink(url){if(window.Native&&Native.copyText){Native.copyText(url);toast("تم نسخ الرابط");return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){toast("تم نسخ الرابط");}).catch(function(){fallbackCopy(url);});}else fallbackCopy(url);}
+  function fallbackCopy(value){var el=document.createElement("textarea");el.value=value;el.style.position="fixed";el.style.opacity="0";document.body.appendChild(el);el.select();try{document.execCommand("copy");toast("تم نسخ الرابط");}catch(e){toast("اضغط مطولًا على الرابط لنسخه");}el.remove();}
+  function share(url){var message="انضم إلى مكالمتي عبر الرابط:\n"+url+"\nيمكنك الدخول من المتصفح بدون تطبيق MoCall.";if(window.Native&&Native.shareInvitation){Native.shareInvitation(message);return;}if(navigator.share){navigator.share({title:"دعوة مكالمة MoCall",text:message,url:url}).catch(function(){});}else{copyLink(url);}}
+  function createRoom(){var name=byId("meetingName").value.trim()||"مكالمة جديدة";current={name:name,url:"https://meet.jit.si/MOCALL-"+makeId(),time:new Date().toISOString()};byId("meetingLink").textContent=current.url;byId("meetingPanel").hidden=false;save(current);byId("meetingPanel").scrollIntoView({behavior:"smooth",block:"nearest"});}
+  function renderHistory(){var el=byId("history"),list=rooms().slice(0,6);el.textContent="";if(!list.length){var x=document.createElement("p");x.className="muted";x.textContent="لسه مفيش مكالمات. أول رابط تعمله هيظهر هنا.";el.appendChild(x);return;}list.forEach(function(r){if(!validUrl(r.url))return;var d=document.createElement("div");d.className="historyitem";var info=document.createElement("div");var title=document.createElement("strong");title.textContent=r.name||"مكالمة";var t=document.createElement("small");var date=new Date(r.time);t.textContent=isNaN(date.valueOf())?"رابط محفوظ":date.toLocaleString("ar-EG",{dateStyle:"medium",timeStyle:"short"});info.appendChild(title);info.appendChild(t);var b=document.createElement("button");b.className="btn ghost";b.textContent="فتح ↗";b.addEventListener("click",function(){openMeeting(r.url);});d.appendChild(info);d.appendChild(b);el.appendChild(d);});}
+  byId("createBtn").addEventListener("click",createRoom);
+  byId("copyBtn").addEventListener("click",function(){if(current)copyLink(current.url);});
+  byId("shareBtn").addEventListener("click",function(){if(current)share(current.url);});
+  byId("joinBtn").addEventListener("click",function(){if(current)openMeeting(current.url);});
+  byId("joinOtherBtn").addEventListener("click",function(){var url=roomUrl(byId("joinInput").value);if(!url){toast("اكتب رابط Jitsi صالح أو اسم الغرفة");return;}openMeeting(url);});
+  byId("joinInput").addEventListener("keydown",function(e){if(e.key==="Enter")byId("joinOtherBtn").click();});
+  renderHistory();
+  if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){navigator.serviceWorker.register("./sw.js").catch(function(){});}
+})();
+</script>
+</body>
+</html>

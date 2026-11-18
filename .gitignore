@@ -1,8 +1,6 @@
-node_modules/
-out/
-release/
-src/renderer/public/pdfjs/
-*.log
-.DS_Store
-dist/
-dist-portable/
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
