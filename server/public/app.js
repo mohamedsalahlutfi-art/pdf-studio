@@ -112,6 +112,12 @@
       (state.online.has(to) ? "● الشخص متصل الآن ويمكنك الاتصال" : "○ الشخص غير متصل حاليًا، أو لم يتم تحديث حالته") :
       "الطرف الثاني لازم يكون فاتح MoCall ومتصلاً بالخادم.";
   }
+  function rememberConnectedPeer(id) {
+    if (!ID_RE.test(id || "") || id === state.id || state.contacts.some(c => c.id === id)) return;
+    state.contacts.unshift({name: "متصل " + id.slice(0, 6), id});
+    persistContacts();
+    show("تم حفظ هوية الشخص تلقائيًا في جهات اتصالك");
+  }
   function renderContacts() {
     const root = $("contacts-list");
     root.replaceChildren();
@@ -296,6 +302,7 @@
       if (!state.call || state.peer!==pc) return;
       if (pc.connectionState==="connected") {
         $("call-status").textContent="مكالمة متصلة ومشفرة";
+        rememberConnectedPeer(state.call.peerId);
         $("video-placeholder").hidden=true;
       }
       if (pc.connectionState==="failed") {

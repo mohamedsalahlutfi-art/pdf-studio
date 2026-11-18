@@ -6,7 +6,7 @@ Arabic-first **self-hosted one-to-one audio/video calling** with Android APK and
 - Own Node.js + WebSocket signaling. No Jitsi, Google Meet, or redirects.
 - WebRTC media encryption in transit via DTLS-SRTP; optional self-hosted coturn relay.
 - ECDSA P-256 device/browser public/private key pair generated locally. The 22-character ID is derived from the public key, not a MAC address. Private keys remain in IndexedDB; the signaling server challenges signatures.
-- Contacts stored locally, not in a central contacts database.
+- Contacts stored locally, not in a central contacts database. The other party is automatically saved after a successful WebRTC connection, using their stable cryptographic ID.
 - Voice/video incoming call, accept/reject, microphone mute, video toggle and hangup while both devices are connected.
 - Share an HTTPS URL with a public call ID; guests join through a browser without installing MoCall.
 - Native Android WebView with microphone/camera permissions restricted to the configured HTTPS server.
