@@ -45,19 +45,20 @@ async function loggedIn() {
   const signature=await crypto.webcrypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},person.keys.privateKey,data);
   const ready=readMessage(ws,"ready");
   ws.send(JSON.stringify({t:"auth",id:person.id,pub:person.pub,sig:Buffer.from(signature).toString("base64url")}));
-  await ready;
-  return {ws,id:person.id};
+  const auth=await ready;
+  return {ws,id:person.id,iceTicket:auth.iceTicket};
 }
 test("private server, authenticated identities, online calls, and no recording", async t=>{
   const child=await start();
   t.after(()=>child.kill());
   const health=await fetch(ORIGIN+"/healthz");
   assert.equal(health.status,200);
-  const ice=await (await fetch(ORIGIN+"/api/ice")).json();
-  assert.deepEqual(ice.iceServers,[]);
+  assert.equal((await fetch(ORIGIN+"/api/ice")).status,401);
   const web=await (await fetch(ORIGIN+"/")).text();
   assert.match(web,/MoCall Private/);
   const a=await loggedIn(),b=await loggedIn();
+  const ice=await (await fetch(ORIGIN+"/api/ice",{headers:{"Authorization":"Bearer "+a.iceTicket}})).json();
+  assert.deepEqual(ice.iceServers,[]);
   t.after(()=>{a.ws.close();b.ws.close();});
   const presence=readMessage(a.ws,"presence");
   a.ws.send(JSON.stringify({t:"presence",ids:[b.id]}));

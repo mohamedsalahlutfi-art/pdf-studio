@@ -7,7 +7,7 @@
   const state = {
     id: null, pair: null, socket: null, ready: false, contacts: [],
     peer: null, call: null, pending: null, stream: null, candidates: [], ice: null,
-    online: new Set(), reconnectTimer: null
+    online: new Set(), reconnectTimer: null, iceTicket: null
   };
   let toastTimeout;
   const enc = new TextEncoder();
@@ -173,6 +173,7 @@
       }
       else if (msg.t === "ready") {
         state.ready=true;
+        state.iceTicket=msg.iceTicket;
         $("my-id").textContent=state.id;
         setNetwork(true,"متصل بخادمك الخاص");
         renderContacts(); queryPresence();
@@ -226,6 +227,8 @@
     ws.addEventListener("close", () => {
       if (state.socket !== ws) return;
       state.ready=false;
+      state.iceTicket=null;
+      state.ice=null;
       state.online.clear();setNetwork(false,"غير متصل — إعادة المحاولة");
       $("incoming-overlay").hidden=true; state.pending=null;
       if (state.call) finishCall(false);
@@ -271,7 +274,7 @@
     if (state.peer) return state.peer;
     if (!state.call) throw Error("no call");
     if (!state.ice) {
-      const res=await fetch("/api/ice",{cache:"no-store"});
+      const res=await fetch("/api/ice",{cache:"no-store",headers:{"Authorization":"Bearer "+state.iceTicket}});
       if (!res.ok) throw Error("ICE settings unavailable");
       state.ice=await res.json();
     }
@@ -343,7 +346,7 @@
     if (state.stream) {state.stream.getTracks().forEach(t=>t.stop());state.stream=null;}
     $("local-video").srcObject=null;$("remote-video").srcObject=null;
     $("call-overlay").hidden=true;$("video-placeholder").hidden=false;
-    state.call=null;state.candidates=[];
+    state.call=null;state.candidates=[];state.ice=null;
   }
   function saveContact() {
     const name=$("contact-name").value.trim();

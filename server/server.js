@@ -17,6 +17,7 @@ const TURN_SECRET = process.env.TURN_SECRET || "";
 const PUBLIC_ROOT = path.join(__dirname, "public");
 const ONLINE = new Map();
 const CALLS = new Map();
+const TICKETS = new Map();
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const SESSION_RE = /^[A-Za-z0-9_-]{16,48}$/;
 const routes = {
@@ -51,6 +52,12 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (pathname === "/api/ice") {
+    const match = String(req.headers.authorization || "").match(/^Bearer ([A-Za-z0-9_-]{43})$/);
+    const ticket = match && TICKETS.get(match[1]);
+    if (!ticket || ticket.expires < Date.now() || !ONLINE.has(ticket.id)) {
+      respond(res, 401, JSON.stringify({error:"authenticated session required"}));
+      return;
+    }
     let iceServers = [];
     if (TURN_HOST && TURN_SECRET) {
       const username = Math.floor(Date.now() / 1000 + 3600) + ":" + crypto.randomBytes(8).toString("hex");
@@ -158,7 +165,10 @@ wss.on("connection", (ws) => {
       const old = ONLINE.get(ws.identity);
       if (old && old !== ws) old.close(1000, "new session");
       ONLINE.set(ws.identity, ws);
-      send(ws, {t:"ready", id: ws.identity});
+      const ticket = crypto.randomBytes(32).toString("base64url");
+      ws.iceTicket = ticket;
+      TICKETS.set(ticket, {id:ws.identity, expires:Date.now()+10*60*1000});
+      send(ws, {t:"ready", id: ws.identity, iceTicket:ticket});
       return;
     }
     if (msg.t === "presence") {
@@ -173,7 +183,7 @@ wss.on("connection", (ws) => {
       if (busy(msg.to)) { send(ws, {t:"unavailable", reason:"busy", id:msg.to}); return; }
       const other = ONLINE.get(msg.to);
       if (!other) { send(ws, {t:"unavailable", reason:"offline", id:msg.to}); return; }
-      CALLS.set(msg.session, {from: ws.identity, to: msg.to, mode: msg.mode, accepted:false});
+      CALLS.set(msg.session, {from: ws.identity, to: msg.to, mode: msg.mode, accepted:false, created:Date.now()});
       send(other, {t:"incoming", from: ws.identity, session:msg.session, mode:msg.mode});
       send(ws, {t:"ringing", session:msg.session});
       return;
@@ -193,6 +203,7 @@ wss.on("connection", (ws) => {
   });
   ws.on("close", () => {
     clearTimeout(authTimeout);
+    if (ws.iceTicket) TICKETS.delete(ws.iceTicket);
     if (!ws.identity) return;
     if (ONLINE.get(ws.identity) === ws) {
       ONLINE.delete(ws.identity);
@@ -205,6 +216,12 @@ wss.on("connection", (ws) => {
 });
 
 const heartbeat = setInterval(() => {
+  for (const [token, data] of TICKETS) {
+    if (data.expires < Date.now()) TICKETS.delete(token);
+  }
+  for (const [session, call] of CALLS) {
+    if (!call.accepted && Date.now()-call.created > 45000) closeCall(session, "", "timeout");
+  }
   wss.clients.forEach(ws => {
     if (!ws.isAlive) { ws.terminate(); return; }
     ws.isAlive = false;
